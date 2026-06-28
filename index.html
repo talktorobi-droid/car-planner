@@ -171,7 +171,7 @@
         }
         .attendee-item:active { cursor: grabbing; }
         
-        .attendee-item.permanent-driver {
+        .permanent-driver {
             border-color: var(--permanent-color);
             background: #fbfbfe;
             cursor: default;
@@ -211,7 +211,7 @@
         </div>
     </header>
 
-    <!-- Interactive Database Warning Banner (Only displays when Supabase table structure is absent) -->
+    <!-- Interactive Database Warning Banner -->
     <div id="db-warning-banner" class="warning-banner">
         <h4>⚠️ Supabase Database Setup Required</h4>
         <p>The table <strong>car_planner_sync</strong> is missing from your Supabase schema cache. Run this script in the <strong>SQL Editor</strong> on your Supabase dashboard to create it:</p>
@@ -438,16 +438,8 @@ ON CONFLICT (id) DO NOTHING;</pre>
         document.getElementById('global-headcount').innerText = assignedTotalHeadcount;
     }
 
-    // ONLINE CLOUD SYNC LOGIC
-    async function saveToCloud() {
-        const state = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-1': [] } };
-        document.querySelectorAll('#master-list .attendee-item span').forEach(el => state.master.push(el.innerText));
-        CAR_IDS.forEach(carId => {
-            document.querySelectorAll(`#list-${carId} .attendee-item:not(.permanent-driver) span`).forEach(el => {
-                state.cars[carId].push(el.innerText);
-            });
-        });
-
+    // ONLINE CLOUD SYNC LOGIC (Optimized to perform an robust Upsert)
+    async function saveToCloudState(state) {
         localStorage.setItem('carPlannerState', JSON.stringify(state));
 
         const cleanUrl = getCleanSupabaseUrl();
@@ -455,15 +447,16 @@ ON CONFLICT (id) DO NOTHING;</pre>
         setStatus("☁️ Syncing changes...");
 
         try {
-            const response = await fetch(`${cleanUrl}/rest/v1/car_planner_sync?id=eq.trip-data`, {
-                method: 'PATCH',
+            // Using POST with resolutions payload to run a safe Upsert directly
+            const response = await fetch(`${cleanUrl}/rest/v1/car_planner_sync`, {
+                method: 'POST',
                 headers: {
                     'apikey': SUPABASE_KEY,
                     'Authorization': `Bearer ${SUPABASE_KEY}`,
                     'Content-Type': 'application/json',
-                    'Prefer': 'return=minimal'
+                    'Prefer': 'resolution=merge-duplicates,return=minimal'
                 },
-                body: JSON.stringify({ state_json: state })
+                body: JSON.stringify({ id: 'trip-data', state_json: state })
             });
             if (response.ok) { 
                 setStatus("🟢 Synced online"); 
@@ -477,6 +470,17 @@ ON CONFLICT (id) DO NOTHING;</pre>
             console.error("Network Error during save:", error);
             setStatus("🔴 Network disconnection");
         }
+    }
+
+    async function saveToCloud() {
+        const state = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-1': [] } };
+        document.querySelectorAll('#master-list .attendee-item span').forEach(el => state.master.push(el.innerText));
+        CAR_IDS.forEach(carId => {
+            document.querySelectorAll(`#list-${carId} .attendee-item:not(.permanent-driver) span`).forEach(el => {
+                state.cars[carId].push(el.innerText);
+            });
+        });
+        await saveToCloudState(state);
     }
 
     async function loadFromCloud() {
@@ -498,6 +502,11 @@ ON CONFLICT (id) DO NOTHING;</pre>
                     if (data && data.length > 0) {
                         targetState = data[0].state_json;
                         document.getElementById('db-warning-banner').style.display = 'none';
+                    } else {
+                        // Table exists but is empty! Create default schema 
+                        console.log("Supabase table empty. Creating default schema.");
+                        targetState = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-1': [] } };
+                        await saveToCloudState(targetState);
                     }
                 } else {
                     const errText = await response.text();
@@ -519,6 +528,8 @@ ON CONFLICT (id) DO NOTHING;</pre>
             } else {
                 if (cleanUrl.includes("YOUR_SUPABASE")) {
                     setStatus("⚠️ Add API Keys to code");
+                } else {
+                    setStatus("🟢 Ready (Empty)");
                 }
                 updateAllCounts();
                 return;
