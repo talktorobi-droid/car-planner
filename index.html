@@ -54,6 +54,43 @@
             font-size: 16px;
         }
 
+        /* Setup warning banner for missing database tables */
+        .warning-banner {
+            display: none;
+            background: #fff2e6;
+            border: 1px solid #ff9500;
+            padding: 16px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            color: #663c00;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .warning-banner h4 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #d97706;
+        }
+        .warning-banner p {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .warning-banner pre {
+            background: #ffffff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ffe0b3;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 0 0 12px 0;
+            user-select: all;
+            white-space: pre;
+        }
+
         .setup-section { 
             background: var(--card-bg); 
             padding: 15px; 
@@ -173,6 +210,24 @@
             <button class="secondary danger" onclick="clearAllData()">Reset All</button>
         </div>
     </header>
+
+    <!-- Interactive Database Warning Banner (Only displays when Supabase table structure is absent) -->
+    <div id="db-warning-banner" class="warning-banner">
+        <h4>⚠️ Supabase Database Setup Required</h4>
+        <p>The table <strong>car_planner_sync</strong> is missing from your Supabase schema cache. Run this script in the <strong>SQL Editor</strong> on your Supabase dashboard to create it:</p>
+        <pre>CREATE TABLE car_planner_sync (
+  id TEXT PRIMARY KEY,
+  state_json JSONB,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE car_planner_sync DISABLE ROW LEVEL SECURITY;
+
+INSERT INTO car_planner_sync (id, state_json) 
+VALUES ('trip-data', '{"master": [], "cars": {"car-1": [], "car-2": [], "car-3": [], "car-4": []}}')
+ON CONFLICT (id) DO NOTHING;</pre>
+        <button onclick="document.getElementById('db-warning-banner').style.display='none'" style="background: #ff9500; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Dismiss Banner</button>
+    </div>
     
     <!-- Input Section & Headcount Tracker -->
     <div class="setup-section">
@@ -233,24 +288,6 @@
     const SUPABASE_KEY = "sb_publishable_-xBOf79UK1yNUuXbn8Oxvg_85e6L7SR";
     // =========================================================================
 
-    // =========================================================================
-    // ⚠️ DATABASE SETUP SQL INSTRUCTIONS (Run this inside Supabase SQL Editor):
-    // =========================================================================
-    /*
-    CREATE TABLE car_planner_sync (
-      id TEXT PRIMARY KEY,
-      state_json JSONB,
-      updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-    );
-
-    ALTER TABLE car_planner_sync DISABLE ROW LEVEL SECURITY;
-
-    INSERT INTO car_planner_sync (id, state_json) 
-    VALUES ('trip-data', '{"master": [], "cars": {"car-1": [], "car-2": [], "car-3": [], "car-4": []}}')
-    ON CONFLICT (id) DO NOTHING;
-    */
-    // =========================================================================
-
     // Auto-sanitizer for Supabase URL configurations
     function getCleanSupabaseUrl() {
         let url = SUPABASE_URL.trim();
@@ -271,10 +308,15 @@
         try {
             const errObj = JSON.parse(errorResponseText);
             if (errObj.code === "PGRST205" || (errObj.message && errObj.message.includes("Could not find the table"))) {
+                document.getElementById('db-warning-banner').style.display = 'block';
                 return "⚠️ Table missing in Supabase. Check SQL editor script!";
             }
             return `🔴 ${errObj.message || fallbackMsg}`;
         } catch (e) {
+            if (errorResponseText && errorResponseText.includes("Could not find the table")) {
+                document.getElementById('db-warning-banner').style.display = 'block';
+                return "⚠️ Table missing in Supabase. Check SQL editor script!";
+            }
             return `🔴 ${fallbackMsg}`;
         }
     }
@@ -425,6 +467,7 @@
             });
             if (response.ok) { 
                 setStatus("🟢 Synced online"); 
+                document.getElementById('db-warning-banner').style.display = 'none';
             } else { 
                 const errText = await response.text();
                 console.error("Supabase Save Error Details:", errText);
@@ -454,6 +497,7 @@
                     const data = await response.json();
                     if (data && data.length > 0) {
                         targetState = data[0].state_json;
+                        document.getElementById('db-warning-banner').style.display = 'none';
                     }
                 } else {
                     const errText = await response.text();
