@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Trip Car Planner</title>
+    <style>
+        :root {
+            --bg-color: #f5f5f7;
+            --card-bg: #ffffff;
+            --accent-color: #0071e3;
+            --text-color: #1d1d1f;
+            --border-color: #d2d2d7;
+            --danger-color: #ff3b30;
+            --permanent-color: #5856d6;
+        }
+        
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: var(--bg-color); 
+            margin: 0; 
+            padding: 20px; 
+            color: var(--text-color);
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+        
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        h2 { margin: 0; font-size: 26px; }
+
+        .btn-group { display: flex; gap: 8px; }
+
+        .headcount-badge {
+            background: #e8e8ed;
+            color: var(--text-color);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 14px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.05);
+        }
+        .headcount-number {
+            color: var(--accent-color);
+            font-size: 16px;
+        }
+
+        .setup-section { 
+            background: var(--card-bg); 
+            padding: 15px; 
+            border-radius: 12px; 
+            margin-bottom: 20px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+        }
+        @media (max-width: 600px) {
+            .setup-section { flex-direction: column; align-items: stretch; }
+        }
+        
+        .input-group { display: flex; gap: 10px; flex-grow: 1; }
+        
+        input { 
+            padding: 10px 12px; 
+            border: 1px solid var(--border-color); 
+            border-radius: 8px; 
+            flex-grow: 1; 
+            font-size: 16px; 
+            outline: none;
+        }
+        
+        button { 
+            background: var(--accent-color); 
+            color: white; 
+            border: none; 
+            padding: 10px 18px; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-weight: 600; 
+            font-size: 14px;
+            transition: background 0.2s;
+            white-space: nowrap;
+        }
+        button:hover { background: #0077ed; }
+        button.secondary { background: #e8e8ed; color: var(--text-color); }
+        button.secondary:hover { background: #d2d2d7; }
+        button.danger { background: var(--danger-color); }
+        button.danger:hover { background: #e0241b; }
+        
+        .app-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; }
+        @media (max-width: 768px) { .app-grid { grid-template-columns: 1fr; } }
+        
+        .panel { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 300px; }
+        .panel h3 { margin-top: 0; padding-bottom: 8px; border-bottom: 1px solid #f2f2f7; }
+
+        .car-grid { display: grid; grid-template-columns: 1fr; gap: 15px; }
+        
+        .car-card { 
+            background: #f5f5f7; 
+            padding: 15px; 
+            border-radius: 12px; 
+            border: 2px dashed var(--border-color); 
+            transition: all 0.2s;
+        }
+        .car-card.drag-over { border-color: var(--accent-color); background: #e8f4ff; }
+        .car-card.full { border-color: #ff9500; background: #fff9f0; }
+
+        .car-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
+        
+        .attendee-list { min-height: 60px; display: flex; flex-direction: column; gap: 8px; }
+        
+        .attendee-item { 
+            background: var(--card-bg); 
+            padding: 10px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border-color); 
+            cursor: grab; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05); 
+            user-select: none;
+        }
+        .attendee-item:active { cursor: grabbing; }
+        
+        .attendee-item.permanent-driver {
+            border-color: var(--permanent-color);
+            background: #fbfbfe;
+            cursor: default;
+        }
+        .driver-badge {
+            background: var(--permanent-color);
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        
+        .item-controls { display: flex; align-items: center; gap: 6px; }
+        
+        .move-select {
+            padding: 4px 6px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: #f5f5f7;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .delete-btn { color: var(--danger-color); background: none; border: none; padding: 0 5px; cursor: pointer; font-size: 18px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h2>🚗 Trip Car Planner</h2>
+        <div class="btn-group">
+            <button class="secondary" onclick="shareStateLink()">Update 🔃Share</button>
+            <button class="secondary danger" onclick="clearAllData()">Reset All</button>
+        </div>
+    </header>
+    
+    <!-- Input Section & Headcount Tracker -->
+    <div class="setup-section">
+        <div class="input-group">
+            <input type="text" id="new-name" placeholder="Enter person's name..." onkeypress="handleKeyPress(event)">
+            <button onclick="addAttendee()">Add Person</button>
+        </div>
+        <div class="headcount-badge">
+            👥 Total Assigned: <span id="global-headcount" class="headcount-number">0</span>
+        </div>
+    </div>
+
+    <div class="app-grid">
+        <!-- Master List Panel -->
+        <div class="panel">
+            <h3>Unassigned Attendees</h3>
+            <div id="master-list" class="attendee-list" ondrop="drop(event)" ondragover="allowDrop(event)">
+                <!-- Dynamic items go here -->
+            </div>
+        </div>
+
+        <!-- Cars Panel -->
+        <div class="panel">
+            <h3>Cars Available</h3>
+            <div class="car-grid">
+                <!-- Car 1 -->
+                <div class="car-card" id="car-1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header"><span>SeniorSelorm 1 (SUV)</span><span class="count" data-limit="6">0 / 6</span></div>
+                    <div class="attendee-list">
+                        <div class="attendee-item permanent-driver"><span>Driver</span><span class="driver-badge">Permanent</span></div>
+                    </div>
+                </div>
+                <!-- Car 4 -->
+                <div class="car-card" id="car-4" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header"><span>SeniorSelorm 2 (EV)</span><span class="count" data-limit="4">0 / 4</span></div>
+                    <div class="attendee-list">
+                        <div class="attendee-item permanent-driver"><span>Driver</span><span class="driver-badge">Permanent</span></div>
+                    </div>
+                </div>
+                <!-- Car 2 -->
+                <div class="car-card" id="car-2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header"><span>MokkaE (EV)</span><span class="count" data-limit="5">0 / 5</span></div>
+                    <div class="attendee-list"></div>
+                </div>
+                <!-- Car 3 -->
+                <div class="car-card" id="car-3" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header"><span>Geodesic (EV)</span><span class="count" data-limit="5">0 / 5</span></div>
+                    <div class="attendee-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let idCounter = Date.now();
+    const CAR_IDS = ['car-1', 'car-4', 'car-2', 'car-3'];
+
+    function handleKeyPress(e) {
+        if (e.key === 'Enter') addAttendee();
+    }
+
+    function allowDrop(ev) {
+        ev.preventDefault();
+    }
+
+    function drag(ev) {
+        if (ev.target.classList.contains('permanent-driver')) {
+            ev.preventDefault();
+            return;
+        }
+        ev.dataTransfer.setData("text/plain", ev.target.id);
+    }
+
+    function drop(ev) {
+        ev.preventDefault();
+        const data = ev.dataTransfer.getData("text/plain");
+        const draggedElement = document.getElementById(data);
+        if (!draggedElement) return;
+        
+        let targetList = ev.target.closest('.attendee-list') || ev.target.querySelector('.attendee-list');
+        
+        if (!targetList && ev.target.closest('.car-card')) {
+            targetList = ev.target.closest('.car-card').querySelector('.attendee-list');
+        } else if (!targetList && ev.target.closest('#master-list')) {
+            targetList = document.getElementById('master-list');
+        }
+
+        if (targetList) {
+            executeMove(draggedElement, targetList);
+        }
+    }
+
+    function executeMove(element, targetList) {
+        const carCard = targetList.closest('.car-card');
+        
+        if (carCard) {
+            const countEl = carCard.querySelector('.count');
+            const limit = parseInt(countEl.getAttribute('data-limit'));
+            const currentDynamicCount = Array.from(targetList.children).filter(child => !child.classList.contains('permanent-driver')).length;
+
+            if (element.parentElement !== targetList && currentDynamicCount >= limit) {
+                alert(`⚠️ Space limit reached! This car can only hold ${limit} additional people.`);
+                return;
+            }
+        }
+
+        targetList.appendChild(element);
+        
+        const selectEl = element.querySelector('.move-select');
+        if (targetList.id === 'master-list') {
+            selectEl.value = 'master';
+        } else {
+            selectEl.value = targetList.id.replace('list-', '');
+        }
+
+        updateAllCounts();
+        saveState();
+    }
+
+    function handleMobileMove(selectObj, itemId) {
+        const destinationValue = selectObj.value;
+        const itemElement = document.getElementById(itemId);
+        const targetList = destinationValue === 'master' ? document.getElementById('master-list') : document.getElementById(`list-${destinationValue}`);
+        
+        if (targetList) {
+            executeMove(itemElement, targetList);
+        }
+    }
+
+    function addAttendee(nameText = null, targetId = 'master-list') {
+        const input = document.getElementById('new-name');
+        const name = nameText || input.value.trim();
+        
+        if (!name) return;
+
+        idCounter++;
+        const itemId = 'person-' + idCounter;
+        const item = document.createElement('div');
+        item.className = 'attendee-item';
+        item.id = itemId;
+        item.draggable = true;
+        item.ondragstart = drag;
+        
+        const initialSelectValue = targetId === 'master-list' ? 'master' : targetId.replace('list-', '');
+
+        item.innerHTML = `
+            <span>${name}</span>
+            <div class="item-controls">
+                <select class="move-select" onchange="handleMobileMove(this, '${itemId}')">
+                    <option value="master">Pool</option>
+                    <option value="car-1">SeniorSelorm 1</option>
+                    <option value="car-4">SeniorSelorm 2</option>
+                    <option value="car-2">MokkaE</option>
+                    <option value="car-3">Geodesic</option>
+                </select>
+                <button class="delete-btn" onclick="deletePerson('${itemId}')">×</button>
+            </div>
+        `;
+
+        document.getElementById(targetId).appendChild(item);
+        item.querySelector('.move-select').value = initialSelectValue;
+
+        if (!nameText) input.value = '';
+        
+        updateAllCounts();
+        saveState();
+    }
+
+    function deletePerson(id) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.remove();
+            updateAllCounts();
+            saveState();
+        }
+    }
+
+    function updateAllCounts() {
+        let assignedTotalHeadcount = 0;
+
+        // Sum up only the active passengers added to cars
+        document.querySelectorAll('.car-card').forEach(car => {
+            const cardHeader = car.querySelector('.count');
+            const limit = parseInt(cardHeader.getAttribute('data-limit'));
+            const count = Array.from(car.querySelector('.attendee-list').children).filter(child => !child.classList.contains('permanent-driver')).length;
+            
+            cardHeader.innerText = `${count} / ${limit}`;
+            assignedTotalHeadcount += count; // Add to sum
+
+            if (count >= limit) {
+                car.classList.add('full');
+            } else {
+                car.classList.remove('full');
+            }
+        });
+
+        // Update the header label count (Unassigned pool is now ignored in this math)
+        document.getElementById('global-headcount').innerText = assignedTotalHeadcount;
+    }
+
+    function saveState() {
+        const state = { master: [], cars: { 'car-1': [], 'car-4': [], 'car-2': [], 'car-3': [] } };
+        
+        document.querySelectorAll('#master-list .attendee-item span').forEach(el => state.master.push(el.innerText));
+        
+        CAR_IDS.forEach(carId => {
+            document.querySelectorAll(`#list-${carId} .attendee-item:not(.permanent-driver) span`).forEach(el => {
+                state.cars[carId].push(el.innerText);
+            });
+        });
+        localStorage.setItem('carPlannerState', JSON.stringify(state));
+    }
+
+    function loadState() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sharedPayload = urlParams.get('data');
+        
+        let targetState;
+        if (sharedPayload) {
+            try {
+                targetState = JSON.parse(decodeURIComponent(atob(sharedPayload)));
+                window.history.replaceState({}, document.title, window.location.pathname);
+            } catch(e) {
+                console.error("Error reading shared data payload");
+            }
+        }
+
+        if (!targetState) {
+            const saved = localStorage.getItem('carPlannerState');
+            if (saved) targetState = JSON.parse(saved);
+        }
+
+        if (!targetState) {
+            updateAllCounts();
+            return;
+        }
+
+        document.getElementById('master-list').innerHTML = '';
+        CAR_IDS.forEach(carId => {
+            const listContainer = document.getElementById(`list-${carId}`);
+            Array.from(listContainer.children).forEach(child => {
+                if (!child.classList.contains('permanent-driver')) child.remove();
+            });
+        });
+        
+        if (targetState.master) {
+            targetState.master.forEach(name => addAttendee(name, 'master-list'));
+        }
+        if (targetState.cars) {
+            Object.keys(targetState.cars).forEach(carId => {
+                if (document.getElementById(`list-${carId}`)) {
+                    targetState.cars[carId].forEach(name => {
+                        addAttendee(name, `list-${carId}`);
+                    });
+                }
+            });
+        }
+        updateAllCounts();
+    }
+
+    function shareStateLink() {
+        const currentData = localStorage.getItem('carPlannerState');
+        if (!currentData) { alert("Please populate the attendee lists before sharing."); return; }
+        
+        const base64Packet = btoa(encodeURIComponent(currentData));
+        const customUrl = `${window.location.origin}${window.location.pathname}?data=${base64Packet}`;
+        
+        navigator.clipboard.writeText(customUrl).then(() => {
+            alert("🚀 Update Link Copied!\n\nPaste and send this link to share your exact car configurations instantly.");
+        }).catch(() => {
+            alert("Could not auto-copy. Simply copy your browser URL bar link manually.");
+        });
+    }
+
+    function clearAllData() {
+        if(confirm("Are you sure you want to completely clear out all attendees?")) {
+            localStorage.removeItem('carPlannerState');
+            document.getElementById('master-list').innerHTML = '';
+            CAR_IDS.forEach(carId => {
+                Array.from(document.getElementById(`list-${carId}`).children).forEach(child => {
+                    if (!child.classList.contains('permanent-driver')) child.remove();
+                });
+            });
+            updateAllCounts();
+        }
+    }
+
+    document.querySelectorAll('.car-card').forEach(car => {
+        car.querySelector('.attendee-list').id = 'list-' + car.id;
+    });
+
+    window.onload = loadState;
+</script>
+</body>
+</html>
