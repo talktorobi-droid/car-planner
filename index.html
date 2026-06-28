@@ -28,12 +28,33 @@
         
         header {
             display: flex;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 24px;
+            gap: 12px;
         }
 
-        h2 { margin: 0; font-size: 26px; }
+        h2 { 
+            margin: 0; 
+            font-size: 28px; 
+            text-align: center;
+            width: 100%;
+        }
+
+        .header-controls {
+            display: flex;
+            width: 100%;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        @media (max-width: 600px) {
+            .header-controls {
+                flex-direction: column;
+                gap: 12px;
+                align-items: center;
+            }
+        }
 
         .btn-group { display: flex; gap: 8px; }
 
@@ -83,6 +104,43 @@
             padding: 12px;
             border-radius: 8px;
             border: 1px solid #ffe0b3;
+            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 0 0 12px 0;
+            user-select: all;
+            white-space: pre;
+        }
+
+        /* Setup warning banner for RLS policies */
+        .rls-banner {
+            display: none;
+            background: #ffe6e6;
+            border: 1px solid #ff3b30;
+            padding: 16px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            color: #801b15;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .rls-banner h4 {
+            margin: 0 0 8px 0;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #ff3b30;
+        }
+        .rls-banner p {
+            margin: 0 0 12px 0;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        .rls-banner pre {
+            background: #ffffff;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #ffb3b0;
             font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
             font-size: 12px;
             overflow-x: auto;
@@ -197,17 +255,29 @@
         }
 
         .delete-btn { color: var(--danger-color); background: none; border: none; padding: 0 5px; cursor: pointer; font-size: 18px; font-weight: bold; }
-        .sync-indicator { font-size: 12px; color: #86868b; font-weight: normal; margin-left: 10px; }
+        .sync-indicator { 
+            font-size: 13px; 
+            color: #86868b; 
+            font-weight: 600; 
+            background: #e8e8ed;
+            padding: 6px 14px;
+            border-radius: 20px;
+            display: inline-flex;
+            align-items: center;
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h2>🚗 Trip Car Planner <span id="sync-status" class="sync-indicator">Checking connection...</span></h2>
-        <div class="btn-group">
-            <button class="secondary" onclick="loadFromCloud()">🔄 Refresh</button>
-            <button class="secondary danger" onclick="clearAllData()">Reset All</button>
+        <h2>🚗 Trip Car Planner</h2>
+        <div class="header-controls">
+            <span id="sync-status" class="sync-indicator">Checking connection...</span>
+            <div class="btn-group">
+                <button class="secondary" onclick="loadFromCloud()">🔄 Refresh</button>
+                <button class="secondary danger" onclick="clearAllData()">Reset All</button>
+            </div>
         </div>
     </header>
 
@@ -227,6 +297,21 @@ INSERT INTO car_planner_sync (id, state_json)
 VALUES ('trip-data', '{"master": [], "cars": {"car-1": [], "car-2": [], "car-3": [], "car-4": []}}')
 ON CONFLICT (id) DO NOTHING;</pre>
         <button onclick="document.getElementById('db-warning-banner').style.display='none'" style="background: #ff9500; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Dismiss Banner</button>
+    </div>
+
+    <!-- Interactive RLS Database Warning Banner -->
+    <div id="rls-warning-banner" class="rls-banner">
+        <h4>⚠️ Row-Level Security (RLS) is Blocking Sync</h4>
+        <p>Supabase is blocking your app from writing to the database. Run this script in the <strong>SQL Editor</strong> on your Supabase dashboard to allow anonymous read/write access:</p>
+        <pre>ALTER TABLE car_planner_sync DISABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Allow anon access" ON car_planner_sync;
+CREATE POLICY "Allow anon access" 
+ON car_planner_sync 
+FOR ALL 
+USING (true) 
+WITH CHECK (true);</pre>
+        <button onclick="document.getElementById('rls-warning-banner').style.display='none'" style="background: #ff3b30; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Dismiss Banner</button>
     </div>
     
     <!-- Input Section & Headcount Tracker -->
@@ -311,8 +396,16 @@ ON CONFLICT (id) DO NOTHING;</pre>
                 document.getElementById('db-warning-banner').style.display = 'block';
                 return "⚠️ Table missing in Supabase. Check SQL editor script!";
             }
+            if (errObj.message && errObj.message.includes("row-level security policy")) {
+                document.getElementById('rls-warning-banner').style.display = 'block';
+                return "⚠️ Security (RLS) is Blocking Sync";
+            }
             return `🔴 ${errObj.message || fallbackMsg}`;
         } catch (e) {
+            if (errorResponseText && errorResponseText.includes("row-level security policy")) {
+                document.getElementById('rls-warning-banner').style.display = 'block';
+                return "⚠️ Security (RLS) is Blocking Sync";
+            }
             if (errorResponseText && errorResponseText.includes("Could not find the table")) {
                 document.getElementById('db-warning-banner').style.display = 'block';
                 return "⚠️ Table missing in Supabase. Check SQL editor script!";
@@ -428,7 +521,7 @@ ON CONFLICT (id) DO NOTHING;</pre>
         
         document.querySelectorAll('.car-card').forEach(car => {
             const cardHeader = car.querySelector('.count');
-            const limit = parseInt(cardHeader.getAttribute('data-limit'));
+            const limit = parseInt(car.querySelector('.count').getAttribute('data-limit'));
             const count = Array.from(car.querySelector('.attendee-list').children).filter(child => !child.classList.contains('permanent-driver')).length;
             cardHeader.innerText = `${count} / ${limit}`;
             assignedTotalHeadcount += count;
@@ -438,7 +531,7 @@ ON CONFLICT (id) DO NOTHING;</pre>
         document.getElementById('global-headcount').innerText = assignedTotalHeadcount;
     }
 
-    // ONLINE CLOUD SYNC LOGIC (Optimized to perform an robust Upsert)
+    // ONLINE CLOUD SYNC LOGIC
     async function saveToCloudState(state) {
         localStorage.setItem('carPlannerState', JSON.stringify(state));
 
@@ -447,7 +540,6 @@ ON CONFLICT (id) DO NOTHING;</pre>
         setStatus("☁️ Syncing changes...");
 
         try {
-            // Using POST with resolutions payload to run a safe Upsert directly
             const response = await fetch(`${cleanUrl}/rest/v1/car_planner_sync`, {
                 method: 'POST',
                 headers: {
@@ -461,6 +553,7 @@ ON CONFLICT (id) DO NOTHING;</pre>
             if (response.ok) { 
                 setStatus("🟢 Synced online"); 
                 document.getElementById('db-warning-banner').style.display = 'none';
+                document.getElementById('rls-warning-banner').style.display = 'none';
             } else { 
                 const errText = await response.text();
                 console.error("Supabase Save Error Details:", errText);
@@ -502,8 +595,8 @@ ON CONFLICT (id) DO NOTHING;</pre>
                     if (data && data.length > 0) {
                         targetState = data[0].state_json;
                         document.getElementById('db-warning-banner').style.display = 'none';
+                        document.getElementById('rls-warning-banner').style.display = 'none';
                     } else {
-                        // Table exists but is empty! Create default schema 
                         console.log("Supabase table empty. Creating default schema.");
                         targetState = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-1': [] } };
                         await saveToCloudState(targetState);
