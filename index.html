@@ -56,7 +56,7 @@
             }
         }
 
-        .btn-group { display: flex; gap: 8px; }
+        .btn-group { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 
         .headcount-badge {
             background: #e8e8ed;
@@ -276,6 +276,7 @@
             <span id="sync-status" class="sync-indicator">Checking connection...</span>
             <div class="btn-group">
                 <button class="secondary" onclick="loadFromCloud()">🔄 Refresh</button>
+                <button class="secondary" onclick="recallAllToPool()">↩️ Empty Cars</button>
                 <button class="secondary danger" onclick="clearAllData()">Reset All</button>
             </div>
         </div>
@@ -294,7 +295,7 @@
 ALTER TABLE car_planner_sync DISABLE ROW LEVEL SECURITY;
 
 INSERT INTO car_planner_sync (id, state_json) 
-VALUES ('trip-data', '{"master": [], "cars": {"car-1": [], "car-2": [], "car-3": [], "car-4": []}}')
+VALUES ('trip-data', '{"master": [], "cars": {"car-1": [], "car-2": [], "car-3": [], "car-4": [], "car-5": []}}')
 ON CONFLICT (id) DO NOTHING;</pre>
         <button onclick="document.getElementById('db-warning-banner').style.display='none'" style="background: #ff9500; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Dismiss Banner</button>
     </div>
@@ -353,6 +354,11 @@ WITH CHECK (true);</pre>
                     <div class="car-header"><span>Geodesic (EV)</span><span class="count" data-limit="5">0 / 5</span></div>
                     <div class="attendee-list"></div>
                 </div>
+                <!-- Car 5 (Preston helper) -->
+                <div class="car-card" id="car-5" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header"><span>Preston helper</span><span class="count" data-limit="5">0 / 5</span></div>
+                    <div class="attendee-list"></div>
+                </div>
                 <!-- Car 1 (Helper 1) -->
                 <div class="car-card" id="car-1" ondrop="drop(event)" ondragover="allowDrop(event)">
                     <div class="car-header"><span>Helper 1</span><span class="count" data-limit="4">0 / 4</span></div>
@@ -382,7 +388,7 @@ WITH CHECK (true);</pre>
     }
 
     let idCounter = Date.now();
-    const CAR_IDS = ['car-4', 'car-2', 'car-3', 'car-1'];
+    const CAR_IDS = ['car-4', 'car-2', 'car-3', 'car-5', 'car-1'];
 
     function setStatus(text) {
         document.getElementById('sync-status').innerText = text;
@@ -495,6 +501,7 @@ WITH CHECK (true);</pre>
                     <option value="car-4">SeniorSelorm (Polstar)</option>
                     <option value="car-2">MokkaE</option>
                     <option value="car-3">Geodesic</option>
+                    <option value="car-5">Preston helper</option>
                     <option value="car-1">Helper 1</option>
                 </select>
                 <button class="delete-btn" onclick="deletePerson('${itemId}')">×</button>
@@ -529,6 +536,27 @@ WITH CHECK (true);</pre>
         });
         
         document.getElementById('global-headcount').innerText = assignedTotalHeadcount;
+    }
+
+    function recallAllToPool() {
+        if (confirm("Are you sure you want to empty all cars and return everyone to the Pool?")) {
+            const masterList = document.getElementById('master-list');
+            CAR_IDS.forEach(carId => {
+                const listContainer = document.getElementById(`list-${carId}`);
+                if (listContainer) {
+                    const attendees = Array.from(listContainer.children);
+                    attendees.forEach(child => {
+                        if (!child.classList.contains('permanent-driver')) {
+                            masterList.appendChild(child);
+                            const selectEl = child.querySelector('.move-select');
+                            if (selectEl) selectEl.value = 'master';
+                        }
+                    });
+                }
+            });
+            updateAllCounts();
+            saveToCloud();
+        }
     }
 
     // ONLINE CLOUD SYNC LOGIC
@@ -566,12 +594,15 @@ WITH CHECK (true);</pre>
     }
 
     async function saveToCloud() {
-        const state = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-1': [] } };
+        const state = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-5': [], 'car-1': [] } };
         document.querySelectorAll('#master-list .attendee-item span').forEach(el => state.master.push(el.innerText));
         CAR_IDS.forEach(carId => {
-            document.querySelectorAll(`#list-${carId} .attendee-item:not(.permanent-driver) span`).forEach(el => {
-                state.cars[carId].push(el.innerText);
-            });
+            const listContainer = document.getElementById(`list-${carId}`);
+            if (listContainer) {
+                listContainer.querySelectorAll('.attendee-item:not(.permanent-driver) span').forEach(el => {
+                    state.cars[carId].push(el.innerText);
+                });
+            }
         });
         await saveToCloudState(state);
     }
@@ -598,7 +629,7 @@ WITH CHECK (true);</pre>
                         document.getElementById('rls-warning-banner').style.display = 'none';
                     } else {
                         console.log("Supabase table empty. Creating default schema.");
-                        targetState = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-1': [] } };
+                        targetState = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-5': [], 'car-1': [] } };
                         await saveToCloudState(targetState);
                     }
                 } else {
@@ -632,9 +663,11 @@ WITH CHECK (true);</pre>
         document.getElementById('master-list').innerHTML = '';
         CAR_IDS.forEach(carId => {
             const listContainer = document.getElementById(`list-${carId}`);
-            Array.from(listContainer.children).forEach(child => {
-                if (!child.classList.contains('permanent-driver')) child.remove();
-            });
+            if (listContainer) {
+                Array.from(listContainer.children).forEach(child => {
+                    if (!child.classList.contains('permanent-driver')) child.remove();
+                });
+            }
         });
         
         if (targetState.master) targetState.master.forEach(name => addAttendee(name, 'master-list'));
@@ -656,9 +689,12 @@ WITH CHECK (true);</pre>
         if(confirm("Completely wipe everyone out online?")) {
             document.getElementById('master-list').innerHTML = '';
             CAR_IDS.forEach(carId => {
-                Array.from(document.getElementById(`list-${carId}`).children).forEach(child => {
-                    if (!child.classList.contains('permanent-driver')) child.remove();
-                });
+                const listContainer = document.getElementById(`list-${carId}`);
+                if (listContainer) {
+                    Array.from(listContainer.children).forEach(child => {
+                        if (!child.classList.contains('permanent-driver')) child.remove();
+                    });
+                }
             });
             updateAllCounts();
             saveToCloud();
