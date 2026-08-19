@@ -13,6 +13,7 @@
             --border-color: #d2d2d7;
             --danger-color: #ff3b30;
             --permanent-color: #5856d6;
+            --disabled-bg: #e5e5ea;
         }
         
         body { 
@@ -75,72 +76,35 @@
             font-size: 16px;
         }
 
-        /* Setup warning banner for missing database tables */
-        .warning-banner {
+        /* Warning banner */
+        .warning-banner, .rls-banner {
             display: none;
+            padding: 16px;
+            border-radius: 14px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+        }
+        .warning-banner {
             background: #fff2e6;
             border: 1px solid #ff9500;
-            padding: 16px;
-            border-radius: 14px;
-            margin-bottom: 20px;
             color: #663c00;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         }
-        .warning-banner h4 {
-            margin: 0 0 8px 0;
-            font-size: 16px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            color: #d97706;
-        }
-        .warning-banner p {
-            margin: 0 0 12px 0;
-            font-size: 14px;
-            line-height: 1.4;
-        }
-        .warning-banner pre {
-            background: #ffffff;
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #ffe0b3;
-            font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
-            font-size: 12px;
-            overflow-x: auto;
-            margin: 0 0 12px 0;
-            user-select: all;
-            white-space: pre;
-        }
-
-        /* Setup warning banner for RLS policies */
         .rls-banner {
-            display: none;
             background: #ffe6e6;
             border: 1px solid #ff3b30;
-            padding: 16px;
-            border-radius: 14px;
-            margin-bottom: 20px;
             color: #801b15;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.03);
         }
-        .rls-banner h4 {
+        .warning-banner h4, .rls-banner h4 {
             margin: 0 0 8px 0;
             font-size: 16px;
             display: flex;
             align-items: center;
             gap: 8px;
-            color: #ff3b30;
         }
-        .rls-banner p {
-            margin: 0 0 12px 0;
-            font-size: 14px;
-            line-height: 1.4;
-        }
-        .rls-banner pre {
+        .warning-banner pre, .rls-banner pre {
             background: #ffffff;
             padding: 12px;
             border-radius: 8px;
-            border: 1px solid #ffb3b0;
             font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
             font-size: 12px;
             overflow-x: auto;
@@ -211,8 +175,74 @@
         .car-card.drag-over { border-color: var(--accent-color); background: #e8f4ff; }
         .car-card.full { border-color: #ff9500; background: #fff9f0; }
 
-        .car-header { display: flex; justify-content: space-between; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); padding-bottom: 5px; }
-        
+        /* Inactive Car Styles */
+        .car-card.car-inactive {
+            opacity: 0.55;
+            background: #ebebeb;
+            border-style: solid;
+            border-color: #d2d2d7;
+        }
+        .car-card.car-inactive .attendee-list {
+            pointer-events: none;
+        }
+
+        .car-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            font-weight: bold; 
+            margin-bottom: 10px; 
+            border-bottom: 1px solid var(--border-color); 
+            padding-bottom: 8px; 
+        }
+        .car-title-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Car Availability Switch */
+        .car-toggle-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #636366;
+            cursor: pointer;
+            user-select: none;
+        }
+        .car-toggle {
+            appearance: none;
+            width: 36px;
+            height: 20px;
+            background: #d1d1d6;
+            border-radius: 20px;
+            position: relative;
+            outline: none;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin: 0;
+        }
+        .car-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 16px;
+            height: 16px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .car-toggle:checked {
+            background: #34c759;
+        }
+        .car-toggle:checked::after {
+            transform: translateX(16px);
+        }
+
         .attendee-list { min-height: 60px; display: flex; flex-direction: column; gap: 8px; }
         
         .attendee-item { 
@@ -285,34 +315,15 @@
     <!-- Interactive Database Warning Banner -->
     <div id="db-warning-banner" class="warning-banner">
         <h4>⚠️ Supabase Database Setup Required</h4>
-        <p>The table <strong>car_planner_sync</strong> is missing from your Supabase schema cache. Run this script in the <strong>SQL Editor</strong> on your Supabase dashboard to create it:</p>
-        <pre>CREATE TABLE car_planner_sync (
-  id TEXT PRIMARY KEY,
-  state_json JSONB,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
-ALTER TABLE car_planner_sync DISABLE ROW LEVEL SECURITY;
-
-INSERT INTO car_planner_sync (id, state_json) 
-VALUES ('trip-data', '{"master": [], "cars": {"car-1": [], "car-2": [], "car-3": [], "car-4": [], "car-5": []}}')
-ON CONFLICT (id) DO NOTHING;</pre>
-        <button onclick="document.getElementById('db-warning-banner').style.display='none'" style="background: #ff9500; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Dismiss Banner</button>
+        <p>The table <strong>car_planner_sync</strong> is missing from your Supabase schema cache.</p>
+        <button onclick="document.getElementById('db-warning-banner').style.display='none'" style="background: #ff9500; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Dismiss</button>
     </div>
 
     <!-- Interactive RLS Database Warning Banner -->
     <div id="rls-warning-banner" class="rls-banner">
         <h4>⚠️ Row-Level Security (RLS) is Blocking Sync</h4>
-        <p>Supabase is blocking your app from writing to the database. Run this script in the <strong>SQL Editor</strong> on your Supabase dashboard to allow anonymous read/write access:</p>
-        <pre>ALTER TABLE car_planner_sync DISABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Allow anon access" ON car_planner_sync;
-CREATE POLICY "Allow anon access" 
-ON car_planner_sync 
-FOR ALL 
-USING (true) 
-WITH CHECK (true);</pre>
-        <button onclick="document.getElementById('rls-warning-banner').style.display='none'" style="background: #ff3b30; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Dismiss Banner</button>
+        <p>Supabase is blocking your app from writing to the database.</p>
+        <button onclick="document.getElementById('rls-warning-banner').style.display='none'" style="background: #ff3b30; color: white; border: none; padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer;">Dismiss</button>
     </div>
     
     <!-- Input Section & Headcount Tracker -->
@@ -338,30 +349,122 @@ WITH CHECK (true);</pre>
             <h3>Cars Available</h3>
             <div class="car-grid">
                 <!-- Car 4 (SeniorSelorm (Polstar)) -->
-                <div class="car-card" id="car-4" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    <div class="car-header"><span>SeniorSelorm (Polstar)</span><span class="count" data-limit="4">0 / 4</span></div>
+                <div class="car-card" id="car-4" data-name="SeniorSelorm (Polstar)" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header">
+                        <div class="car-title-group">
+                            <label class="car-toggle-label">
+                                <input type="checkbox" class="car-toggle" checked onchange="toggleCarAvailability('car-4', this.checked)">
+                            </label>
+                            <span>SeniorSelorm (Polstar)</span>
+                        </div>
+                        <span class="count" data-limit="4">0 / 4</span>
+                    </div>
                     <div class="attendee-list">
                         <div class="attendee-item permanent-driver"><span>Driver</span><span class="driver-badge">Permanent</span></div>
                     </div>
                 </div>
+
                 <!-- Car 2 (MokkaE) -->
-                <div class="car-card" id="car-2" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    <div class="car-header"><span>MokkaE (EV)</span><span class="count" data-limit="5">0 / 5</span></div>
+                <div class="car-card" id="car-2" data-name="MokkaE" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header">
+                        <div class="car-title-group">
+                            <label class="car-toggle-label">
+                                <input type="checkbox" class="car-toggle" checked onchange="toggleCarAvailability('car-2', this.checked)">
+                            </label>
+                            <span>MokkaE (EV)</span>
+                        </div>
+                        <span class="count" data-limit="5">0 / 5</span>
+                    </div>
                     <div class="attendee-list"></div>
                 </div>
+
                 <!-- Car 3 (Geodesic) -->
-                <div class="car-card" id="car-3" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    <div class="car-header"><span>Geodesic (EV)</span><span class="count" data-limit="5">0 / 5</span></div>
+                <div class="car-card" id="car-3" data-name="Geodesic" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header">
+                        <div class="car-title-group">
+                            <label class="car-toggle-label">
+                                <input type="checkbox" class="car-toggle" checked onchange="toggleCarAvailability('car-3', this.checked)">
+                            </label>
+                            <span>Geodesic (EV)</span>
+                        </div>
+                        <span class="count" data-limit="5">0 / 5</span>
+                    </div>
                     <div class="attendee-list"></div>
                 </div>
+
                 <!-- Car 5 (Preston helper) -->
-                <div class="car-card" id="car-5" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    <div class="car-header"><span>Preston helper</span><span class="count" data-limit="5">0 / 5</span></div>
+                <div class="car-card" id="car-5" data-name="Preston helper" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header">
+                        <div class="car-title-group">
+                            <label class="car-toggle-label">
+                                <input type="checkbox" class="car-toggle" checked onchange="toggleCarAvailability('car-5', this.checked)">
+                            </label>
+                            <span>Preston helper</span>
+                        </div>
+                        <span class="count" data-limit="5">0 / 5</span>
+                    </div>
                     <div class="attendee-list"></div>
                 </div>
+
                 <!-- Car 1 (Helper 1) -->
-                <div class="car-card" id="car-1" ondrop="drop(event)" ondragover="allowDrop(event)">
-                    <div class="car-header"><span>Helper 1</span><span class="count" data-limit="4">0 / 4</span></div>
+                <div class="car-card" id="car-1" data-name="Helper 1" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header">
+                        <div class="car-title-group">
+                            <label class="car-toggle-label">
+                                <input type="checkbox" class="car-toggle" checked onchange="toggleCarAvailability('car-1', this.checked)">
+                            </label>
+                            <span>Helper 1</span>
+                        </div>
+                        <span class="count" data-limit="4">0 / 4</span>
+                    </div>
+                    <div class="attendee-list">
+                        <div class="attendee-item permanent-driver"><span>Driver</span><span class="driver-badge">Permanent</span></div>
+                    </div>
+                </div>
+
+                <!-- Car 6 (Helper 2) -->
+                <div class="car-card" id="car-6" data-name="Helper 2" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header">
+                        <div class="car-title-group">
+                            <label class="car-toggle-label">
+                                <input type="checkbox" class="car-toggle" checked onchange="toggleCarAvailability('car-6', this.checked)">
+                            </label>
+                            <span>Helper 2</span>
+                        </div>
+                        <span class="count" data-limit="4">0 / 4</span>
+                    </div>
+                    <div class="attendee-list">
+                        <div class="attendee-item permanent-driver"><span>Driver</span><span class="driver-badge">Permanent</span></div>
+                    </div>
+                </div>
+
+                <!-- Car 7 (Helper 3) -->
+                <div class="car-card" id="car-7" data-name="Helper 3" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header">
+                        <div class="car-title-group">
+                            <label class="car-toggle-label">
+                                <input type="checkbox" class="car-toggle" checked onchange="toggleCarAvailability('car-7', this.checked)">
+                            </label>
+                            <span>Helper 3</span>
+                        </div>
+                        <span class="count" data-limit="4">0 / 4</span>
+                    </div>
+                    <div class="attendee-list">
+                        <div class="attendee-item permanent-driver"><span>Driver</span><span class="driver-badge">Permanent</span></div>
+                    </div>
+                </div>
+
+                <!-- Car 8 (Helper 7 Seater) -->
+                <div class="car-card" id="car-8" data-name="Helper 7 Seater" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header">
+                        <div class="car-title-group">
+                            <label class="car-toggle-label">
+                                <input type="checkbox" class="car-toggle" checked onchange="toggleCarAvailability('car-8', this.checked)">
+                            </label>
+                            <span>Helper 7 Seater</span>
+                        </div>
+                        <span class="count" data-limit="6">0 / 6</span>
+                    </div>
                     <div class="attendee-list">
                         <div class="attendee-item permanent-driver"><span>Driver</span><span class="driver-badge">Permanent</span></div>
                     </div>
@@ -379,7 +482,6 @@ WITH CHECK (true);</pre>
     const SUPABASE_KEY = "sb_publishable_-xBOf79UK1yNUuXbn8Oxvg_85e6L7SR";
     // =========================================================================
 
-    // Auto-sanitizer for Supabase URL configurations
     function getCleanSupabaseUrl() {
         let url = SUPABASE_URL.trim();
         url = url.replace(/\/+$/, "");
@@ -388,43 +490,88 @@ WITH CHECK (true);</pre>
     }
 
     let idCounter = Date.now();
-    const CAR_IDS = ['car-4', 'car-2', 'car-3', 'car-5', 'car-1'];
+    const CAR_DEFINITIONS = [
+        { id: 'car-4', label: 'SeniorSelorm (Polstar)' },
+        { id: 'car-2', label: 'MokkaE' },
+        { id: 'car-3', label: 'Geodesic' },
+        { id: 'car-5', label: 'Preston helper' },
+        { id: 'car-1', label: 'Helper 1' },
+        { id: 'car-6', label: 'Helper 2' },
+        { id: 'car-7', label: 'Helper 3' },
+        { id: 'car-8', label: 'Helper 7 Seater' }
+    ];
+    const CAR_IDS = CAR_DEFINITIONS.map(c => c.id);
 
     function setStatus(text) {
         document.getElementById('sync-status').innerText = text;
     }
 
-    // Helper to extract clean user warnings for known database connection or schema errors
-    function handleSupabaseError(errorResponseText, fallbackMsg) {
-        try {
-            const errObj = JSON.parse(errorResponseText);
-            if (errObj.code === "PGRST205" || (errObj.message && errObj.message.includes("Could not find the table"))) {
-                document.getElementById('db-warning-banner').style.display = 'block';
-                return "⚠️ Table missing in Supabase. Check SQL editor script!";
+    function isCarActive(carId) {
+        const carEl = document.getElementById(carId);
+        if (!carEl) return false;
+        const toggle = carEl.querySelector('.car-toggle');
+        return toggle ? toggle.checked : true;
+    }
+
+    function toggleCarAvailability(carId, isActive) {
+        const carEl = document.getElementById(carId);
+        const targetList = document.getElementById(`list-${carId}`);
+        const masterList = document.getElementById('master-list');
+
+        if (!isActive) {
+            carEl.classList.add('car-inactive');
+            // Empty all dynamic passengers back to pool
+            if (targetList) {
+                const occupants = Array.from(targetList.children);
+                occupants.forEach(child => {
+                    if (!child.classList.contains('permanent-driver')) {
+                        masterList.appendChild(child);
+                    }
+                });
             }
-            if (errObj.message && errObj.message.includes("row-level security policy")) {
-                document.getElementById('rls-warning-banner').style.display = 'block';
-                return "⚠️ Security (RLS) is Blocking Sync";
-            }
-            return `🔴 ${errObj.message || fallbackMsg}`;
-        } catch (e) {
-            if (errorResponseText && errorResponseText.includes("row-level security policy")) {
-                document.getElementById('rls-warning-banner').style.display = 'block';
-                return "⚠️ Security (RLS) is Blocking Sync";
-            }
-            if (errorResponseText && errorResponseText.includes("Could not find the table")) {
-                document.getElementById('db-warning-banner').style.display = 'block';
-                return "⚠️ Table missing in Supabase. Check SQL editor script!";
-            }
-            return `🔴 ${fallbackMsg}`;
+        } else {
+            carEl.classList.remove('car-inactive');
         }
+
+        refreshAllDropdownOptions();
+        updateAllCounts();
+        saveToCloud();
+    }
+
+    function refreshAllDropdownOptions() {
+        document.querySelectorAll('.attendee-item:not(.permanent-driver)').forEach(item => {
+            const selectEl = item.querySelector('.move-select');
+            if (!selectEl) return;
+            const currentVal = selectEl.value;
+
+            selectEl.innerHTML = `<option value="master">Pool</option>`;
+            CAR_DEFINITIONS.forEach(car => {
+                if (isCarActive(car.id)) {
+                    const opt = document.createElement('option');
+                    opt.value = car.id;
+                    opt.textContent = car.label;
+                    selectEl.appendChild(opt);
+                }
+            });
+
+            // If selected car became inactive, snap value back to Pool
+            if (currentVal !== 'master' && !isCarActive(currentVal)) {
+                selectEl.value = 'master';
+            } else {
+                selectEl.value = currentVal;
+            }
+        });
     }
 
     function handleKeyPress(e) {
         if (e.key === 'Enter') addAttendee();
     }
 
-    function allowDrop(ev) { ev.preventDefault(); }
+    function allowDrop(ev) { 
+        const carCard = ev.target.closest('.car-card');
+        if (carCard && carCard.classList.contains('car-inactive')) return; // Block drop if disabled
+        ev.preventDefault(); 
+    }
 
     function drag(ev) {
         if (ev.target.classList.contains('permanent-driver')) {
@@ -453,6 +600,11 @@ WITH CHECK (true);</pre>
     function executeMove(element, targetList) {
         const carCard = targetList.closest('.car-card');
         if (carCard) {
+            if (carCard.classList.contains('car-inactive')) {
+                alert("⚠️ This vehicle is currently marked as unavailable.");
+                return;
+            }
+
             const countEl = carCard.querySelector('.count');
             const limit = parseInt(countEl.getAttribute('data-limit'));
             const currentDynamicCount = Array.from(targetList.children).filter(child => !child.classList.contains('permanent-driver')).length;
@@ -498,17 +650,13 @@ WITH CHECK (true);</pre>
             <div class="item-controls">
                 <select class="move-select" onchange="handleMobileMove(this, '${itemId}')">
                     <option value="master">Pool</option>
-                    <option value="car-4">SeniorSelorm (Polstar)</option>
-                    <option value="car-2">MokkaE</option>
-                    <option value="car-3">Geodesic</option>
-                    <option value="car-5">Preston helper</option>
-                    <option value="car-1">Helper 1</option>
                 </select>
                 <button class="delete-btn" onclick="deletePerson('${itemId}')">×</button>
             </div>
         `;
 
         document.getElementById(targetId).appendChild(item);
+        refreshAllDropdownOptions();
         item.querySelector('.move-select').value = initialSelectValue;
 
         if (!nameText) {
@@ -528,10 +676,13 @@ WITH CHECK (true);</pre>
         
         document.querySelectorAll('.car-card').forEach(car => {
             const cardHeader = car.querySelector('.count');
-            const limit = parseInt(car.querySelector('.count').getAttribute('data-limit'));
+            const limit = parseInt(cardHeader.getAttribute('data-limit'));
             const count = Array.from(car.querySelector('.attendee-list').children).filter(child => !child.classList.contains('permanent-driver')).length;
             cardHeader.innerText = `${count} / ${limit}`;
-            assignedTotalHeadcount += count;
+            
+            if (isCarActive(car.id)) {
+                assignedTotalHeadcount += count;
+            }
             if (count >= limit) { car.classList.add('full'); } else { car.classList.remove('full'); }
         });
         
@@ -583,9 +734,7 @@ WITH CHECK (true);</pre>
                 document.getElementById('db-warning-banner').style.display = 'none';
                 document.getElementById('rls-warning-banner').style.display = 'none';
             } else { 
-                const errText = await response.text();
-                console.error("Supabase Save Error Details:", errText);
-                setStatus(handleSupabaseError(errText, "Sync failed")); 
+                setStatus("🔴 Sync failed"); 
             }
         } catch (error) {
             console.error("Network Error during save:", error);
@@ -594,9 +743,17 @@ WITH CHECK (true);</pre>
     }
 
     async function saveToCloud() {
-        const state = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-5': [], 'car-1': [] } };
+        const state = { 
+            master: [], 
+            cars: {},
+            activeCars: {}
+        };
         document.querySelectorAll('#master-list .attendee-item span').forEach(el => state.master.push(el.innerText));
+        
         CAR_IDS.forEach(carId => {
+            state.cars[carId] = [];
+            state.activeCars[carId] = isCarActive(carId);
+
             const listContainer = document.getElementById(`list-${carId}`);
             if (listContainer) {
                 listContainer.querySelectorAll('.attendee-item:not(.permanent-driver) span').forEach(el => {
@@ -625,39 +782,40 @@ WITH CHECK (true);</pre>
                     const data = await response.json();
                     if (data && data.length > 0) {
                         targetState = data[0].state_json;
-                        document.getElementById('db-warning-banner').style.display = 'none';
-                        document.getElementById('rls-warning-banner').style.display = 'none';
-                    } else {
-                        console.log("Supabase table empty. Creating default schema.");
-                        targetState = { master: [], cars: { 'car-4': [], 'car-2': [], 'car-3': [], 'car-5': [], 'car-1': [] } };
-                        await saveToCloudState(targetState);
                     }
-                } else {
-                    const errText = await response.text();
-                    console.error("Supabase Load Error Details:", errText);
-                    setStatus(handleSupabaseError(errText, "Could not refresh"));
                 }
             } catch (e) {
                 console.error("Supabase load connection issue:", e);
-                setStatus("🔴 Could not refresh");
             }
         }
 
-        // Offline fallback
         if (!targetState) {
             const saved = localStorage.getItem('carPlannerState');
             if (saved) {
                 targetState = JSON.parse(saved);
                 setStatus("📱 Loaded local backup");
             } else {
-                if (cleanUrl.includes("YOUR_SUPABASE")) {
-                    setStatus("⚠️ Add API Keys to code");
-                } else {
-                    setStatus("🟢 Ready (Empty)");
-                }
+                setStatus("🟢 Ready");
                 updateAllCounts();
                 return;
             }
+        }
+
+        // Apply active/inactive toggle states
+        if (targetState.activeCars) {
+            CAR_IDS.forEach(carId => {
+                const isActive = targetState.activeCars[carId] !== undefined ? targetState.activeCars[carId] : true;
+                const carCard = document.getElementById(carId);
+                if (carCard) {
+                    const toggle = carCard.querySelector('.car-toggle');
+                    if (toggle) toggle.checked = isActive;
+                    if (!isActive) {
+                        carCard.classList.add('car-inactive');
+                    } else {
+                        carCard.classList.remove('car-inactive');
+                    }
+                }
+            });
         }
 
         document.getElementById('master-list').innerHTML = '';
@@ -678,9 +836,11 @@ WITH CHECK (true);</pre>
                 }
             });
         }
+
+        refreshAllDropdownOptions();
         updateAllCounts();
         
-        if (!cleanUrl.includes("YOUR_SUPABASE") && document.getElementById('sync-status').innerText.includes("Fetching")) {
+        if (!cleanUrl.includes("YOUR_SUPABASE")) {
             setStatus("🟢 Up to date");
         }
     }
