@@ -84,6 +84,8 @@
             width: 100%;
             box-sizing: border-box;
             text-align: center;
+            flex-wrap: wrap;
+            gap: 4px;
         }
         .headcount-number {
             color: var(--accent-color);
@@ -395,7 +397,7 @@
             <button class="secondary icon-btn" title="Bulk Add Attendees" onclick="openBulkModal()">📋</button>
         </div>
         <div class="headcount-badge">
-            <span id="global-headcount" class="headcount-number">Assigned: 0 / 0</span>
+            <span id="global-headcount" class="headcount-number">Total Registered: 0</span>
         </div>
     </div>
 
@@ -630,6 +632,7 @@
 
         refreshAllDropdownOptions();
         updateAllCounts();
+        refreshAllCarDriverButtons();
         saveToCloud();
     }
 
@@ -720,6 +723,40 @@
         }
     }
 
+    function refreshAllCarDriverButtons() {
+        CAR_DEFINITIONS.forEach(car => {
+            const listContainer = document.getElementById(`list-${car.id}`);
+            if (!listContainer) return;
+
+            if (car.hasPermanentDriver || car.isTrain) {
+                listContainer.querySelectorAll('.driver-toggle-btn').forEach(btn => btn.style.display = 'none');
+                return;
+            }
+
+            const driverItem = listContainer.querySelector('.attendee-item[data-is-driver="true"]');
+            
+            listContainer.querySelectorAll('.attendee-item:not(.permanent-driver)').forEach(item => {
+                const btn = item.querySelector('.driver-toggle-btn');
+                if (!btn) return;
+                
+                if (driverItem) {
+                    // Driver is already selected: only the designated driver gets the button (to remove)
+                    if (item === driverItem) {
+                        btn.style.display = 'inline-block';
+                    } else {
+                        btn.style.display = 'none';
+                    }
+                } else {
+                    // No driver selected yet: all passengers show the driver designation button
+                    btn.style.display = 'inline-block';
+                }
+            });
+        });
+
+        // Hide driver buttons in the pool
+        document.querySelectorAll('#master-list .driver-toggle-btn').forEach(btn => btn.style.display = 'none');
+    }
+
     function toggleDriverDesignation(itemId) {
         const item = document.getElementById(itemId);
         if (!item) return;
@@ -737,20 +774,8 @@
             setAttendeeDriverStatus(item, false);
         }
 
+        refreshAllCarDriverButtons();
         saveToCloud();
-    }
-
-    function updateDriverButtonVisibility(element, targetListId) {
-        const driverBtn = element.querySelector('.driver-toggle-btn');
-        if (!driverBtn) return;
-
-        const carDef = CAR_DEFINITIONS.find(c => targetListId === `list-${c.id}`);
-        if (carDef && !carDef.hasPermanentDriver && !carDef.isTrain) {
-            driverBtn.style.display = 'inline-block';
-        } else {
-            driverBtn.style.display = 'none';
-            setAttendeeDriverStatus(element, false);
-        }
     }
 
     function executeMove(element, targetList) {
@@ -775,11 +800,16 @@
             }
         }
 
+        // If moved to a new list, clear previous driver status
+        if (element.parentElement !== targetList) {
+            setAttendeeDriverStatus(element, false);
+        }
+
         targetList.appendChild(element);
         const selectEl = element.querySelector('.move-select');
         selectEl.value = targetList.id === 'master-list' ? 'master' : targetList.id.replace('list-', '');
 
-        updateDriverButtonVisibility(element, targetList.id);
+        refreshAllCarDriverButtons();
         updateAllCounts();
         saveToCloud();
     }
@@ -823,10 +853,11 @@
         refreshAllDropdownOptions();
         item.querySelector('.move-select').value = initialSelectValue;
 
-        updateDriverButtonVisibility(item, targetId);
         if (isDriver) {
             setAttendeeDriverStatus(item, true);
         }
+
+        refreshAllCarDriverButtons();
 
         if (!nameText) {
             input.value = '';
@@ -837,7 +868,12 @@
 
     function deletePerson(id) {
         const el = document.getElementById(id);
-        if (el) { el.remove(); updateAllCounts(); saveToCloud(); }
+        if (el) { 
+            el.remove(); 
+            refreshAllCarDriverButtons();
+            updateAllCounts(); 
+            saveToCloud(); 
+        }
     }
 
     function updateAllCounts() {
@@ -869,8 +905,10 @@
         const poolCount = document.querySelectorAll('#master-list .attendee-item').length;
         document.getElementById('pool-count').innerText = poolCount;
 
-        const remainingSeats = totalActiveCarCapacity - assignedCarPassengers;
-        let headcountText = `Cars: ${assignedCarPassengers}/${totalActiveCarCapacity} (${remainingSeats} free)`;
+        const totalRegisteredAttendees = poolCount + assignedCarPassengers + trainCount;
+        const remainingCarSeats = totalActiveCarCapacity - assignedCarPassengers;
+        
+        let headcountText = `Total: ${totalRegisteredAttendees} (Unassigned: ${poolCount}) • Cars: ${assignedCarPassengers}/${totalActiveCarCapacity} (${remainingCarSeats} free)`;
         if (trainCount > 0) {
             headcountText += ` • 🚆 Train: ${trainCount}`;
         }
@@ -984,7 +1022,7 @@
     }
 
     function recallAllToPool() {
-        if (confirm("Are you sure you want to empty all cars and return everyone to the Pool?")) {
+        if (confirm("Are you sure you want to empty all transport options and return everyone to the Pool?")) {
             const masterList = document.getElementById('master-list');
             CAR_IDS.forEach(carId => {
                 const listContainer = document.getElementById(`list-${carId}`);
@@ -993,7 +1031,6 @@
                     attendees.forEach(child => {
                         if (!child.classList.contains('permanent-driver')) {
                             setAttendeeDriverStatus(child, false);
-                            updateDriverButtonVisibility(child, 'master-list');
                             masterList.appendChild(child);
                             const selectEl = child.querySelector('.move-select');
                             if (selectEl) selectEl.value = 'master';
@@ -1001,6 +1038,7 @@
                     });
                 }
             });
+            refreshAllCarDriverButtons();
             updateAllCounts();
             saveToCloud();
         }
@@ -1148,6 +1186,7 @@
         }
 
         refreshAllDropdownOptions();
+        refreshAllCarDriverButtons();
         updateAllCounts();
         
         if (!cleanUrl.includes("YOUR_SUPABASE")) {
@@ -1166,6 +1205,7 @@
                     });
                 }
             });
+            refreshAllCarDriverButtons();
             updateAllCounts();
             saveToCloud();
         }
