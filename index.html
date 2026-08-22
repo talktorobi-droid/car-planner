@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Carrying the Lambs (CTL)</title>
+    
+    <!-- Favicon and App Shortcut Icons -->
+    <link rel="icon" type="image/png" href="ctl-icon_monochrome.png">
+    <link rel="apple-touch-icon" href="ctl-icon_monochrome.png">
+
     <style>
         :root {
             --bg-color: #f5f5f7;
@@ -14,6 +19,7 @@
             --danger-color: #ff3b30;
             --success-color: #34c759;
             --permanent-color: #5856d6;
+            --dynamic-driver-color: #ff9500;
         }
         
         body { 
@@ -38,13 +44,21 @@
 
         h2 { 
             margin: 0; 
-            font-size: 22px; 
+            font-size: 20px; 
             text-align: center;
             width: 100%;
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 6px;
+            gap: 8px;
+        }
+
+        .title-crest-icon {
+            width: 26px;
+            height: 26px;
+            border-radius: 50%;
+            object-fit: cover;
+            vertical-align: middle;
         }
 
         .subtitle {
@@ -252,6 +266,12 @@
         }
         .attendee-item:active { cursor: grabbing; }
         
+        .attendee-name-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
         .permanent-driver {
             border-color: var(--permanent-color);
             background: #fbfbfe;
@@ -265,9 +285,38 @@
             border-radius: 4px;
             font-weight: bold;
         }
+
+        .is-driver-assigned {
+            border-color: var(--dynamic-driver-color);
+            background: #fffcf5;
+        }
+        .dynamic-driver-badge {
+            background: var(--dynamic-driver-color);
+            color: white;
+            font-size: 11px;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+        }
         
-        .item-controls { display: flex; align-items: center; gap: 6px; }
+        .item-controls { display: flex; align-items: center; gap: 4px; }
         
+        .driver-toggle-btn {
+            background: none;
+            border: 1px solid var(--border-color);
+            color: #8e8e93;
+            padding: 3px 6px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            line-height: 1;
+        }
+        .driver-toggle-btn.active {
+            background: var(--dynamic-driver-color);
+            border-color: var(--dynamic-driver-color);
+            color: white;
+        }
+
         .move-select {
             padding: 4px 6px;
             border-radius: 6px;
@@ -333,7 +382,10 @@
 
 <div class="container">
     <header>
-        <h2>🐑 Carrying the Lambs (CTL)</h2>
+        <h2>
+            <img src="ctl-icon_monochrome.png" alt="CTL Crest" class="title-crest-icon">
+            Carrying the Lambs (CTL)
+        </h2>
         <p class="subtitle">Isaiah 40:11</p>
         <div class="header-controls">
             <span id="sync-status" class="sync-indicator">Checking connection...</span>
@@ -346,7 +398,6 @@
         </div>
     </header>
 
-    <!-- Interactive Database Warning Banners -->
     <div id="db-warning-banner" class="warning-banner">
         <strong>⚠️ Database Setup Required</strong>: Table missing in Supabase schema.
     </div>
@@ -355,7 +406,6 @@
         <strong>⚠️ Permission Blocked</strong>: Row-Level Security (RLS) is blocking sync.
     </div>
     
-    <!-- Input Section & Headcount Tracker -->
     <div class="setup-section">
         <div class="input-row">
             <input type="text" id="new-name" placeholder="Enter name..." onkeypress="handleKeyPress(event)">
@@ -539,14 +589,14 @@
 
     let idCounter = Date.now();
     const CAR_DEFINITIONS = [
-        { id: 'car-4', label: 'SeniorSelorm (Polstar)' },
-        { id: 'car-2', label: 'MokkaE (EV)' },
-        { id: 'car-3', label: 'Geodesic (EV)' },
-        { id: 'car-5', label: 'Preston helper' },
-        { id: 'car-1', label: 'Helper 1' },
-        { id: 'car-6', label: 'Helper 2' },
-        { id: 'car-7', label: 'Helper 3' },
-        { id: 'car-8', label: 'Helper 7 Seater' }
+        { id: 'car-4', label: 'SeniorSelorm (Polstar)', hasPermanentDriver: true },
+        { id: 'car-2', label: 'MokkaE (EV)', hasPermanentDriver: false },
+        { id: 'car-3', label: 'Geodesic (EV)', hasPermanentDriver: false },
+        { id: 'car-5', label: 'Preston helper', hasPermanentDriver: false },
+        { id: 'car-1', label: 'Helper 1', hasPermanentDriver: true },
+        { id: 'car-6', label: 'Helper 2', hasPermanentDriver: true },
+        { id: 'car-7', label: 'Helper 3', hasPermanentDriver: true },
+        { id: 'car-8', label: 'Helper 7 Seater', hasPermanentDriver: true }
     ];
     const CAR_IDS = CAR_DEFINITIONS.map(c => c.id);
 
@@ -572,6 +622,7 @@
                 const occupants = Array.from(targetList.children);
                 occupants.forEach(child => {
                     if (!child.classList.contains('permanent-driver')) {
+                        setAttendeeDriverStatus(child, false);
                         masterList.appendChild(child);
                     }
                 });
@@ -643,6 +694,68 @@
         if (targetList) { executeMove(draggedElement, targetList); }
     }
 
+    function setAttendeeDriverStatus(element, isDriver) {
+        const nameContainer = element.querySelector('.attendee-name-container');
+        const driverBtn = element.querySelector('.driver-toggle-btn');
+        let badge = nameContainer.querySelector('.dynamic-driver-badge');
+
+        if (isDriver) {
+            element.classList.add('is-driver-assigned');
+            element.setAttribute('data-is-driver', 'true');
+            if (driverBtn) {
+                driverBtn.classList.add('active');
+                driverBtn.title = "Remove as Driver";
+            }
+            if (!badge) {
+                badge = document.createElement('span');
+                badge.className = 'dynamic-driver-badge';
+                badge.innerText = 'Driver';
+                nameContainer.appendChild(badge);
+            }
+        } else {
+            element.classList.remove('is-driver-assigned');
+            element.removeAttribute('data-is-driver');
+            if (driverBtn) {
+                driverBtn.classList.remove('active');
+                driverBtn.title = "Designate as Driver";
+            }
+            if (badge) badge.remove();
+        }
+    }
+
+    function toggleDriverDesignation(itemId) {
+        const item = document.getElementById(itemId);
+        if (!item) return;
+        const currentCar = item.closest('.car-card');
+        if (!currentCar) return;
+
+        const isCurrentlyDriver = item.getAttribute('data-is-driver') === 'true';
+
+        if (!isCurrentlyDriver) {
+            currentCar.querySelectorAll('.attendee-item[data-is-driver="true"]').forEach(other => {
+                setAttendeeDriverStatus(other, false);
+            });
+            setAttendeeDriverStatus(item, true);
+        } else {
+            setAttendeeDriverStatus(item, false);
+        }
+
+        saveToCloud();
+    }
+
+    function updateDriverButtonVisibility(element, targetListId) {
+        const driverBtn = element.querySelector('.driver-toggle-btn');
+        if (!driverBtn) return;
+
+        const carDef = CAR_DEFINITIONS.find(c => targetListId === `list-${c.id}`);
+        if (carDef && !carDef.hasPermanentDriver) {
+            driverBtn.style.display = 'inline-block';
+        } else {
+            driverBtn.style.display = 'none';
+            setAttendeeDriverStatus(element, false);
+        }
+    }
+
     function executeMove(element, targetList) {
         const carCard = targetList.closest('.car-card');
         if (carCard) {
@@ -656,7 +769,7 @@
             const currentDynamicCount = Array.from(targetList.children).filter(child => !child.classList.contains('permanent-driver')).length;
 
             if (element.parentElement !== targetList && currentDynamicCount >= limit) {
-                alert(`⚠️ Space limit reached! This car can only hold ${limit} additional people.`);
+                alert(`⚠️ Space limit reached! This car can only hold ${limit} people.`);
                 return;
             }
         }
@@ -665,6 +778,7 @@
         const selectEl = element.querySelector('.move-select');
         selectEl.value = targetList.id === 'master-list' ? 'master' : targetList.id.replace('list-', '');
 
+        updateDriverButtonVisibility(element, targetList.id);
         updateAllCounts();
         saveToCloud();
     }
@@ -676,7 +790,7 @@
         if (targetList) { executeMove(item, targetList); }
     }
 
-    function addAttendee(nameText = null, targetId = 'master-list') {
+    function addAttendee(nameText = null, targetId = 'master-list', isDriver = false) {
         const input = document.getElementById('new-name');
         const name = nameText || input.value.trim();
         if (!name) return;
@@ -692,8 +806,11 @@
         const initialSelectValue = targetId === 'master-list' ? 'master' : targetId.replace('list-', '');
 
         item.innerHTML = `
-            <span>${name}</span>
+            <div class="attendee-name-container">
+                <span class="person-name">${name}</span>
+            </div>
             <div class="item-controls">
+                <button class="driver-toggle-btn" style="display:none;" title="Designate as Driver" onclick="toggleDriverDesignation('${itemId}')">🪪 Driver</button>
                 <select class="move-select" onchange="handleMobileMove(this, '${itemId}')">
                     <option value="master">Pool</option>
                 </select>
@@ -704,6 +821,11 @@
         document.getElementById(targetId).appendChild(item);
         refreshAllDropdownOptions();
         item.querySelector('.move-select').value = initialSelectValue;
+
+        updateDriverButtonVisibility(item, targetId);
+        if (isDriver) {
+            setAttendeeDriverStatus(item, true);
+        }
 
         if (!nameText) {
             input.value = '';
@@ -745,8 +867,8 @@
         const masterList = document.getElementById('master-list');
         const items = Array.from(masterList.children);
         items.sort((a, b) => {
-            const nameA = a.querySelector('span').innerText.toLowerCase();
-            const nameB = b.querySelector('span').innerText.toLowerCase();
+            const nameA = a.querySelector('.person-name').innerText.toLowerCase();
+            const nameB = b.querySelector('.person-name').innerText.toLowerCase();
             return nameA.localeCompare(nameB);
         });
         items.forEach(item => masterList.appendChild(item));
@@ -778,33 +900,43 @@
 
     function exportSharePlan() {
         let exportText = `🐑 Carrying the Lambs (CTL) - Carpool Plan\nIsaiah 40:11\n\n`;
-        let activeCarsFound = false;
 
         CAR_DEFINITIONS.forEach(car => {
             if (isCarActive(car.id)) {
-                activeCarsFound = true;
                 const carCard = document.getElementById(car.id);
                 const listContainer = document.getElementById(`list-${car.id}`);
                 const limit = carCard.querySelector('.count').getAttribute('data-limit');
                 
                 const passengers = [];
-                let hasPermanentDriver = false;
+                let assignedDriverName = car.hasPermanentDriver ? 'Assigned Driver' : null;
 
                 if (listContainer) {
                     Array.from(listContainer.children).forEach(child => {
                         if (child.classList.contains('permanent-driver')) {
-                            hasPermanentDriver = true;
+                            assignedDriverName = 'Permanent Driver';
                         } else {
-                            passengers.push(child.querySelector('span').innerText);
+                            const name = child.querySelector('.person-name').innerText;
+                            const isDriver = child.getAttribute('data-is-driver') === 'true';
+                            if (isDriver) {
+                                assignedDriverName = name;
+                            } else {
+                                passengers.push(name);
+                            }
                         }
                     });
                 }
 
-                exportText += `🚗 *${car.label}* (${passengers.length}/${limit})\n`;
-                if (hasPermanentDriver) exportText += `  • Driver: Assigned\n`;
+                const totalInCar = (listContainer ? Array.from(listContainer.children).filter(c => !c.classList.contains('permanent-driver')).length : 0);
+                exportText += `🚗 *${car.label}* (${totalInCar}/${limit})\n`;
+                if (assignedDriverName) {
+                    exportText += `  • Driver: ${assignedDriverName}\n`;
+                } else {
+                    exportText += `  • Driver: (None designated)\n`;
+                }
+                
                 if (passengers.length > 0) {
                     passengers.forEach(p => exportText += `  • ${p}\n`);
-                } else {
+                } else if (!assignedDriverName || assignedDriverName === 'Permanent Driver') {
                     exportText += `  • (No passengers assigned yet)\n`;
                 }
                 exportText += `\n`;
@@ -814,10 +946,8 @@
         const poolCount = document.querySelectorAll('#master-list .attendee-item').length;
         if (poolCount > 0) {
             exportText += `⏳ *Unassigned Pool (${poolCount}):*\n`;
-            document.querySelectorAll('#master-list .attendee-item span').forEach(el => {
-                if (!el.parentElement.classList.contains('item-controls')) {
-                    exportText += `  • ${el.innerText}\n`;
-                }
+            document.querySelectorAll('#master-list .attendee-item .person-name').forEach(el => {
+                exportText += `  • ${el.innerText}\n`;
             });
             exportText += `\n`;
         }
@@ -838,6 +968,8 @@
                     const attendees = Array.from(listContainer.children);
                     attendees.forEach(child => {
                         if (!child.classList.contains('permanent-driver')) {
+                            setAttendeeDriverStatus(child, false);
+                            updateDriverButtonVisibility(child, 'master-list');
                             masterList.appendChild(child);
                             const selectEl = child.querySelector('.move-select');
                             if (selectEl) selectEl.value = 'master';
@@ -888,7 +1020,10 @@
             cars: {},
             activeCars: {}
         };
-        document.querySelectorAll('#master-list .attendee-item > span:first-child').forEach(el => state.master.push(el.innerText));
+        
+        document.querySelectorAll('#master-list .attendee-item .person-name').forEach(el => {
+            state.master.push({ name: el.innerText, isDriver: false });
+        });
         
         CAR_IDS.forEach(carId => {
             state.cars[carId] = [];
@@ -896,8 +1031,10 @@
 
             const listContainer = document.getElementById(`list-${carId}`);
             if (listContainer) {
-                listContainer.querySelectorAll('.attendee-item:not(.permanent-driver) > span:first-child').forEach(el => {
-                    state.cars[carId].push(el.innerText);
+                listContainer.querySelectorAll('.attendee-item:not(.permanent-driver)').forEach(item => {
+                    const name = item.querySelector('.person-name').innerText;
+                    const isDriver = item.getAttribute('data-is-driver') === 'true';
+                    state.cars[carId].push({ name, isDriver });
                 });
             }
         });
@@ -967,11 +1104,21 @@
             }
         });
         
-        if (targetState.master) targetState.master.forEach(name => addAttendee(name, 'master-list'));
+        if (targetState.master) {
+            targetState.master.forEach(item => {
+                const name = typeof item === 'string' ? item : item.name;
+                addAttendee(name, 'master-list', false);
+            });
+        }
+        
         if (targetState.cars) {
             Object.keys(targetState.cars).forEach(carId => {
                 if (document.getElementById(`list-${carId}`)) {
-                    targetState.cars[carId].forEach(name => addAttendee(name, `list-${carId}`));
+                    targetState.cars[carId].forEach(item => {
+                        const name = typeof item === 'string' ? item : item.name;
+                        const isDriver = typeof item === 'object' ? !!item.isDriver : false;
+                        addAttendee(name, `list-${carId}`, isDriver);
+                    });
                 }
             });
         }
