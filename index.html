@@ -42,7 +42,6 @@
             gap: 4px;
         }
 
-        /* Seamless Transparent Header Banner */
         .header-logo-banner {
             max-width: 250px;
             width: 75%;
@@ -368,7 +367,6 @@
 
 <div class="container">
     <header>
-        <!-- Seamless Banner Image -->
         <img src="ctl-icon_monochrome_w_tagline.png" alt="Carrying the Lambs - Isaiah 40:11" class="header-logo-banner">
         
         <div class="header-controls">
@@ -411,10 +409,10 @@
             <div id="master-list" class="attendee-list" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
         </div>
 
-        <!-- Cars Panel -->
+        <!-- Vehicles / Transit Panel -->
         <div class="panel">
             <div class="panel-header-row">
-                <h3>Cars Available</h3>
+                <h3>Transport Available</h3>
             </div>
             <div class="car-grid">
                 <!-- Car 4 (SeniorSelorm (Polstar)) -->
@@ -538,6 +536,20 @@
                         <div class="attendee-item permanent-driver"><span>Driver</span><span class="driver-badge">Permanent</span></div>
                     </div>
                 </div>
+
+                <!-- Train Transit (Unlimited Capacity) -->
+                <div class="car-card" id="car-train" data-name="Train" ondrop="drop(event)" ondragover="allowDrop(event)">
+                    <div class="car-header">
+                        <div class="car-title-group">
+                            <label class="car-toggle-label">
+                                <input type="checkbox" class="car-toggle" checked onchange="toggleCarAvailability('car-train', this.checked)">
+                            </label>
+                            <span>🚆 Train</span>
+                        </div>
+                        <span class="count" data-limit="unlimited">0</span>
+                    </div>
+                    <div class="attendee-list"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -573,14 +585,15 @@
 
     let idCounter = Date.now();
     const CAR_DEFINITIONS = [
-        { id: 'car-4', label: 'SeniorSelorm (Polstar)', hasPermanentDriver: true },
-        { id: 'car-2', label: 'MokkaE (EV)', hasPermanentDriver: false },
-        { id: 'car-3', label: 'Geodesic (EV)', hasPermanentDriver: false },
-        { id: 'car-5', label: 'Preston helper', hasPermanentDriver: false },
-        { id: 'car-1', label: 'Helper 1', hasPermanentDriver: true },
-        { id: 'car-6', label: 'Helper 2', hasPermanentDriver: true },
-        { id: 'car-7', label: 'Helper 3', hasPermanentDriver: true },
-        { id: 'car-8', label: 'Helper 7 Seater', hasPermanentDriver: true }
+        { id: 'car-4', label: 'SeniorSelorm (Polstar)', hasPermanentDriver: true, isTrain: false },
+        { id: 'car-2', label: 'MokkaE (EV)', hasPermanentDriver: false, isTrain: false },
+        { id: 'car-3', label: 'Geodesic (EV)', hasPermanentDriver: false, isTrain: false },
+        { id: 'car-5', label: 'Preston helper', hasPermanentDriver: false, isTrain: false },
+        { id: 'car-1', label: 'Helper 1', hasPermanentDriver: true, isTrain: false },
+        { id: 'car-6', label: 'Helper 2', hasPermanentDriver: true, isTrain: false },
+        { id: 'car-7', label: 'Helper 3', hasPermanentDriver: true, isTrain: false },
+        { id: 'car-8', label: 'Helper 7 Seater', hasPermanentDriver: true, isTrain: false },
+        { id: 'car-train', label: '🚆 Train', hasPermanentDriver: false, isTrain: true }
     ];
     const CAR_IDS = CAR_DEFINITIONS.map(c => c.id);
 
@@ -732,7 +745,7 @@
         if (!driverBtn) return;
 
         const carDef = CAR_DEFINITIONS.find(c => targetListId === `list-${c.id}`);
-        if (carDef && !carDef.hasPermanentDriver) {
+        if (carDef && !carDef.hasPermanentDriver && !carDef.isTrain) {
             driverBtn.style.display = 'inline-block';
         } else {
             driverBtn.style.display = 'none';
@@ -744,17 +757,21 @@
         const carCard = targetList.closest('.car-card');
         if (carCard) {
             if (carCard.classList.contains('car-inactive')) {
-                alert("⚠️ This vehicle is currently marked as unavailable.");
+                alert("⚠️ This transport option is currently marked as unavailable.");
                 return;
             }
 
             const countEl = carCard.querySelector('.count');
-            const limit = parseInt(countEl.getAttribute('data-limit'));
-            const currentDynamicCount = Array.from(targetList.children).filter(child => !child.classList.contains('permanent-driver')).length;
+            const limitAttr = countEl.getAttribute('data-limit');
+            
+            if (limitAttr !== 'unlimited') {
+                const limit = parseInt(limitAttr);
+                const currentDynamicCount = Array.from(targetList.children).filter(child => !child.classList.contains('permanent-driver')).length;
 
-            if (element.parentElement !== targetList && currentDynamicCount >= limit) {
-                alert(`⚠️ Space limit reached! This car can only hold ${limit} people.`);
-                return;
+                if (element.parentElement !== targetList && currentDynamicCount >= limit) {
+                    alert(`⚠️ Space limit reached! This car can only hold ${limit} people.`);
+                    return;
+                }
             }
         }
 
@@ -824,27 +841,40 @@
     }
 
     function updateAllCounts() {
-        let assignedTotalHeadcount = 0;
-        let totalActiveCapacity = 0;
+        let assignedCarPassengers = 0;
+        let totalActiveCarCapacity = 0;
+        let trainCount = 0;
         
         document.querySelectorAll('.car-card').forEach(car => {
             const cardHeader = car.querySelector('.count');
-            const limit = parseInt(cardHeader.getAttribute('data-limit'));
+            const limitAttr = cardHeader.getAttribute('data-limit');
             const count = Array.from(car.querySelector('.attendee-list').children).filter(child => !child.classList.contains('permanent-driver')).length;
-            cardHeader.innerText = `${count} / ${limit}`;
             
-            if (isCarActive(car.id)) {
-                assignedTotalHeadcount += count;
-                totalActiveCapacity += limit;
+            if (limitAttr === 'unlimited') {
+                cardHeader.innerText = `${count}`;
+                if (isCarActive(car.id)) {
+                    trainCount = count;
+                }
+            } else {
+                const limit = parseInt(limitAttr);
+                cardHeader.innerText = `${count} / ${limit}`;
+                if (isCarActive(car.id)) {
+                    assignedCarPassengers += count;
+                    totalActiveCarCapacity += limit;
+                }
+                if (count >= limit) { car.classList.add('full'); } else { car.classList.remove('full'); }
             }
-            if (count >= limit) { car.classList.add('full'); } else { car.classList.remove('full'); }
         });
         
         const poolCount = document.querySelectorAll('#master-list .attendee-item').length;
         document.getElementById('pool-count').innerText = poolCount;
 
-        const remainingSeats = totalActiveCapacity - assignedTotalHeadcount;
-        document.getElementById('global-headcount').innerText = `Assigned: ${assignedTotalHeadcount} / ${totalActiveCapacity} (${remainingSeats} free)`;
+        const remainingSeats = totalActiveCarCapacity - assignedCarPassengers;
+        let headcountText = `Cars: ${assignedCarPassengers}/${totalActiveCarCapacity} (${remainingSeats} free)`;
+        if (trainCount > 0) {
+            headcountText += ` • 🚆 Train: ${trainCount}`;
+        }
+        document.getElementById('global-headcount').innerText = headcountText;
     }
 
     function sortMasterPool() {
@@ -889,7 +919,7 @@
             if (isCarActive(car.id)) {
                 const carCard = document.getElementById(car.id);
                 const listContainer = document.getElementById(`list-${car.id}`);
-                const limit = carCard.querySelector('.count').getAttribute('data-limit');
+                const limitAttr = carCard.querySelector('.count').getAttribute('data-limit');
                 
                 const passengers = [];
                 let assignedDriverName = car.hasPermanentDriver ? 'Assigned Driver' : null;
@@ -911,17 +941,27 @@
                 }
 
                 const totalInCar = (listContainer ? Array.from(listContainer.children).filter(c => !c.classList.contains('permanent-driver')).length : 0);
-                exportText += `🚗 *${car.label}* (${totalInCar}/${limit})\n`;
-                if (assignedDriverName) {
-                    exportText += `  • Driver: ${assignedDriverName}\n`;
-                } else {
-                    exportText += `  • Driver: (None designated)\n`;
-                }
                 
-                if (passengers.length > 0) {
-                    passengers.forEach(p => exportText += `  • ${p}\n`);
-                } else if (!assignedDriverName || assignedDriverName === 'Permanent Driver') {
-                    exportText += `  • (No passengers assigned yet)\n`;
+                if (car.isTrain) {
+                    exportText += `🚆 *Train Travelers* (${totalInCar})\n`;
+                    if (passengers.length > 0) {
+                        passengers.forEach(p => exportText += `  • ${p}\n`);
+                    } else {
+                        exportText += `  • (None traveling by train yet)\n`;
+                    }
+                } else {
+                    exportText += `🚗 *${car.label}* (${totalInCar}/${limitAttr})\n`;
+                    if (assignedDriverName) {
+                        exportText += `  • Driver: ${assignedDriverName}\n`;
+                    } else {
+                        exportText += `  • Driver: (None designated)\n`;
+                    }
+                    
+                    if (passengers.length > 0) {
+                        passengers.forEach(p => exportText += `  • ${p}\n`);
+                    } else if (!assignedDriverName || assignedDriverName === 'Permanent Driver') {
+                        exportText += `  • (No passengers assigned yet)\n`;
+                    }
                 }
                 exportText += `\n`;
             }
