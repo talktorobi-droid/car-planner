@@ -397,7 +397,7 @@
             <button class="secondary icon-btn" title="Bulk Add Attendees" onclick="openBulkModal()">📋</button>
         </div>
         <div class="headcount-badge">
-            <span id="global-headcount" class="headcount-number">Total Registered: 0</span>
+            <span id="global-headcount" class="headcount-number">Total Assigned: 0</span>
         </div>
     </div>
 
@@ -740,20 +740,17 @@
                 if (!btn) return;
                 
                 if (driverItem) {
-                    // Driver is already selected: only the designated driver gets the button (to remove)
                     if (item === driverItem) {
                         btn.style.display = 'inline-block';
                     } else {
                         btn.style.display = 'none';
                     }
                 } else {
-                    // No driver selected yet: all passengers show the driver designation button
                     btn.style.display = 'inline-block';
                 }
             });
         });
 
-        // Hide driver buttons in the pool
         document.querySelectorAll('#master-list .driver-toggle-btn').forEach(btn => btn.style.display = 'none');
     }
 
@@ -800,7 +797,6 @@
             }
         }
 
-        // If moved to a new list, clear previous driver status
         if (element.parentElement !== targetList) {
             setAttendeeDriverStatus(element, false);
         }
@@ -905,13 +901,15 @@
         const poolCount = document.querySelectorAll('#master-list .attendee-item').length;
         document.getElementById('pool-count').innerText = poolCount;
 
-        const totalRegisteredAttendees = poolCount + assignedCarPassengers + trainCount;
+        const totalAssignedAttendees = assignedCarPassengers + trainCount;
         const remainingCarSeats = totalActiveCarCapacity - assignedCarPassengers;
         
-        let headcountText = `Total: ${totalRegisteredAttendees} (Unassigned: ${poolCount}) • Cars: ${assignedCarPassengers}/${totalActiveCarCapacity} (${remainingCarSeats} free)`;
+        let headcountText = `Total Assigned: ${totalAssignedAttendees} (Cars: ${assignedCarPassengers}/${totalActiveCarCapacity} [${remainingCarSeats} free]`;
         if (trainCount > 0) {
             headcountText += ` • 🚆 Train: ${trainCount}`;
         }
+        headcountText += `)`;
+        
         document.getElementById('global-headcount').innerText = headcountText;
     }
 
@@ -1031,6 +1029,7 @@
                     attendees.forEach(child => {
                         if (!child.classList.contains('permanent-driver')) {
                             setAttendeeDriverStatus(child, false);
+                            updateDriverButtonVisibility(child, 'master-list');
                             masterList.appendChild(child);
                             const selectEl = child.querySelector('.move-select');
                             if (selectEl) selectEl.value = 'master';
