@@ -42,31 +42,15 @@
             gap: 4px;
         }
 
-        h2 { 
-            margin: 0; 
-            font-size: 20px; 
-            text-align: center;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .title-crest-icon {
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            object-fit: cover;
-            vertical-align: middle;
-        }
-
-        .subtitle {
-            margin: 0;
-            font-size: 13px;
-            color: #6e6e73;
-            text-align: center;
-            font-weight: 500;
+        /* Top Brand Banner Image */
+        .header-logo-banner {
+            max-width: 240px;
+            width: 75%;
+            height: auto;
+            border-radius: 10px;
+            margin-bottom: 6px;
+            display: block;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
         }
 
         .header-controls {
@@ -382,11 +366,9 @@
 
 <div class="container">
     <header>
-        <h2>
-            <img src="ctl-icon_monochrome.png" alt="CTL Crest" class="title-crest-icon">
-            Carrying the Lambs (CTL)
-        </h2>
-        <p class="subtitle">Isaiah 40:11</p>
+        <!-- Top Banner Graphic with Brand, Car Crest, and Tagline -->
+        <img src="ctl-icon_monochrome_w_tagline.png" alt="Carrying the Lambs - Isaiah 40:11" class="header-logo-banner">
+        
         <div class="header-controls">
             <span id="sync-status" class="sync-indicator">Checking connection...</span>
             <div class="btn-group">
