@@ -904,7 +904,8 @@
         const totalAssignedAttendees = assignedCarPassengers + trainCount;
         const remainingCarSeats = totalActiveCarCapacity - assignedCarPassengers;
         
-        let headcountText = `Total Assigned: ${totalAssignedAttendees} (Cars: ${assignedCarPassengers}/${totalActiveCarCapacity} [${remainingCarSeats} free]`;
+        let freeSeatsSnippet = remainingCarSeats > 0 ? ` [${remainingCarSeats} free]` : '';
+        let headcountText = `Total Assigned: ${totalAssignedAttendees} (Cars: ${assignedCarPassengers}/${totalActiveCarCapacity}${freeSeatsSnippet}`;
         if (trainCount > 0) {
             headcountText += ` • 🚆 Train: ${trainCount}`;
         }
