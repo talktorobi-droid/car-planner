@@ -18,6 +18,7 @@
             --border-color: #d2d2d7;
             --danger-color: #ff3b30;
             --success-color: #34c759;
+            --confirmed-color: #34c759;
             --permanent-color: #5856d6;
             --dynamic-driver-color: #ff9500;
         }
@@ -32,7 +33,7 @@
             box-sizing: border-box;
         }
 
-        .container { max-width: 1000px; margin: 0 auto; width: 100%; }
+        .container { max-width: 1200px; margin: 0 auto; width: 100%; }
         
         header {
             display: flex;
@@ -155,10 +156,28 @@
         button.share-btn:hover { background: #2db34e; }
         button.icon-btn { padding: 10px 12px; font-size: 15px; }
         
-        .app-grid { display: grid; grid-template-columns: 1fr 1.3fr; gap: 16px; }
-        @media (max-width: 768px) { .app-grid { grid-template-columns: 1fr; } }
+        /* 3-Column Responsive Grid */
+        .app-grid { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr 1.3fr; 
+            gap: 16px; 
+        }
+        @media (max-width: 900px) { 
+            .app-grid { grid-template-columns: 1fr; } 
+        }
         
-        .panel { background: var(--card-bg); padding: 16px; border-radius: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 250px; }
+        .panel { 
+            background: var(--card-bg); 
+            padding: 16px; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05); 
+            min-height: 250px; 
+        }
+        .panel-confirmed {
+            border: 2px solid #ccebd7;
+            background: #fafdfb;
+        }
+
         .panel-header-row {
             display: flex;
             justify-content: space-between;
@@ -376,7 +395,7 @@
             <div class="btn-group">
                 <button class="secondary" onclick="loadFromCloud()">🔄 Refresh</button>
                 <button class="secondary share-btn" onclick="exportSharePlan()">📋 Share</button>
-                <button class="secondary" onclick="recallAllToPool()">↩️ Empty</button>
+                <button class="secondary" onclick="recallAllToConfirmed()">↩️ Empty Cars</button>
                 <button class="secondary danger" onclick="clearAllData()">Reset</button>
             </div>
         </div>
@@ -393,25 +412,34 @@
     <div class="setup-section">
         <div class="input-row">
             <input type="text" id="new-name" placeholder="Enter name..." onkeypress="handleKeyPress(event)">
-            <button onclick="addAttendee()">Add</button>
+            <button onclick="addAttendee()">Add to Pool</button>
             <button class="secondary icon-btn" title="Bulk Add Attendees" onclick="openBulkModal()">📋</button>
         </div>
         <div class="headcount-badge">
-            <span id="global-headcount" class="headcount-number">Total Assigned: 0</span>
+            <span id="global-headcount" class="headcount-number">Confirmed: 0 • Capacity: 0/0</span>
         </div>
     </div>
 
     <div class="app-grid">
-        <!-- Master List Panel -->
+        <!-- 1. Master Pool (Unassigned / General Group) -->
         <div class="panel">
             <div class="panel-header-row">
-                <h3>Unassigned (<span id="pool-count">0</span>)</h3>
+                <h3>Pool (<span id="pool-count">0</span>)</h3>
                 <button class="secondary" style="padding: 4px 8px; font-size: 11px;" onclick="sortMasterPool()">🔤 A-Z</button>
             </div>
             <div id="master-list" class="attendee-list" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
         </div>
 
-        <!-- Vehicles / Transit Panel -->
+        <!-- 2. Confirmed Attendees (Holding Area) -->
+        <div class="panel panel-confirmed">
+            <div class="panel-header-row">
+                <h3 style="color: #278347;">✅ Confirmed (<span id="confirmed-count">0</span>)</h3>
+                <button class="secondary" style="padding: 4px 8px; font-size: 11px;" onclick="sortConfirmedPool()">🔤 A-Z</button>
+            </div>
+            <div id="confirmed-list" class="attendee-list" ondrop="drop(event)" ondragover="allowDrop(event)"></div>
+        </div>
+
+        <!-- 3. Vehicles & Train -->
         <div class="panel">
             <div class="panel-header-row">
                 <h3>Transport Available</h3>
@@ -561,7 +589,7 @@
 <div id="bulk-modal" class="modal-overlay">
     <div class="modal-card">
         <h3>Bulk Add Attendees</h3>
-        <p>Paste names separated by commas or line breaks:</p>
+        <p>Paste names separated by commas or line breaks into Pool:</p>
         <textarea id="bulk-names-input" placeholder="Sarah&#10;David&#10;Grace..."></textarea>
         <div class="modal-actions">
             <button class="secondary" onclick="closeBulkModal()">Cancel</button>
@@ -613,7 +641,7 @@
     function toggleCarAvailability(carId, isActive) {
         const carEl = document.getElementById(carId);
         const targetList = document.getElementById(`list-${carId}`);
-        const masterList = document.getElementById('master-list');
+        const confirmedList = document.getElementById('confirmed-list');
 
         if (!isActive) {
             carEl.classList.add('car-inactive');
@@ -622,7 +650,7 @@
                 occupants.forEach(child => {
                     if (!child.classList.contains('permanent-driver')) {
                         setAttendeeDriverStatus(child, false);
-                        masterList.appendChild(child);
+                        confirmedList.appendChild(child);
                     }
                 });
             }
@@ -642,7 +670,10 @@
             if (!selectEl) return;
             const currentVal = selectEl.value;
 
-            selectEl.innerHTML = `<option value="master">Pool</option>`;
+            selectEl.innerHTML = `
+                <option value="master">Pool</option>
+                <option value="confirmed">✅ Confirmed</option>
+            `;
             CAR_DEFINITIONS.forEach(car => {
                 if (isCarActive(car.id)) {
                     const opt = document.createElement('option');
@@ -652,8 +683,8 @@
                 }
             });
 
-            if (currentVal !== 'master' && !isCarActive(currentVal)) {
-                selectEl.value = 'master';
+            if (currentVal !== 'master' && currentVal !== 'confirmed' && !isCarActive(currentVal)) {
+                selectEl.value = 'confirmed';
             } else {
                 selectEl.value = currentVal;
             }
@@ -689,6 +720,8 @@
             targetList = ev.target.closest('.car-card').querySelector('.attendee-list');
         } else if (!targetList && ev.target.closest('#master-list')) {
             targetList = document.getElementById('master-list');
+        } else if (!targetList && ev.target.closest('#confirmed-list')) {
+            targetList = document.getElementById('confirmed-list');
         }
 
         if (targetList) { executeMove(draggedElement, targetList); }
@@ -751,7 +784,7 @@
             });
         });
 
-        document.querySelectorAll('#master-list .driver-toggle-btn').forEach(btn => btn.style.display = 'none');
+        document.querySelectorAll('#master-list .driver-toggle-btn, #confirmed-list .driver-toggle-btn').forEach(btn => btn.style.display = 'none');
     }
 
     function toggleDriverDesignation(itemId) {
@@ -803,7 +836,13 @@
 
         targetList.appendChild(element);
         const selectEl = element.querySelector('.move-select');
-        selectEl.value = targetList.id === 'master-list' ? 'master' : targetList.id.replace('list-', '');
+        if (targetList.id === 'master-list') {
+            selectEl.value = 'master';
+        } else if (targetList.id === 'confirmed-list') {
+            selectEl.value = 'confirmed';
+        } else {
+            selectEl.value = targetList.id.replace('list-', '');
+        }
 
         refreshAllCarDriverButtons();
         updateAllCounts();
@@ -813,7 +852,11 @@
     function handleMobileMove(selectObj, itemId) {
         const dest = selectObj.value;
         const item = document.getElementById(itemId);
-        const targetList = dest === 'master' ? document.getElementById('master-list') : document.getElementById(`list-${dest}`);
+        let targetList;
+        if (dest === 'master') targetList = document.getElementById('master-list');
+        else if (dest === 'confirmed') targetList = document.getElementById('confirmed-list');
+        else targetList = document.getElementById(`list-${dest}`);
+        
         if (targetList) { executeMove(item, targetList); }
     }
 
@@ -830,7 +873,9 @@
         item.draggable = true;
         item.ondragstart = drag;
         
-        const initialSelectValue = targetId === 'master-list' ? 'master' : targetId.replace('list-', '');
+        let initialSelectValue = 'master';
+        if (targetId === 'confirmed-list') initialSelectValue = 'confirmed';
+        else if (targetId !== 'master-list') initialSelectValue = targetId.replace('list-', '');
 
         item.innerHTML = `
             <div class="attendee-name-container">
@@ -840,6 +885,7 @@
                 <button class="driver-toggle-btn" style="display:none;" title="Designate as Driver" onclick="toggleDriverDesignation('${itemId}')">🪪 Driver</button>
                 <select class="move-select" onchange="handleMobileMove(this, '${itemId}')">
                     <option value="master">Pool</option>
+                    <option value="confirmed">✅ Confirmed</option>
                 </select>
                 <button class="delete-btn" onclick="deletePerson('${itemId}')">×</button>
             </div>
@@ -899,17 +945,23 @@
         });
         
         const poolCount = document.querySelectorAll('#master-list .attendee-item').length;
+        const confirmedWaitingCount = document.querySelectorAll('#confirmed-list .attendee-item').length;
+        
         document.getElementById('pool-count').innerText = poolCount;
+        document.getElementById('confirmed-count').innerText = confirmedWaitingCount;
 
-        const totalAssignedAttendees = assignedCarPassengers + trainCount;
+        // Total Confirmed = Waiting in Confirmed holding list + already seated in Cars + on Train
+        const totalConfirmedAttending = confirmedWaitingCount + assignedCarPassengers + trainCount;
         const remainingCarSeats = totalActiveCarCapacity - assignedCarPassengers;
         
         let freeSeatsSnippet = remainingCarSeats > 0 ? ` [${remainingCarSeats} free]` : '';
-        let headcountText = `Total Assigned: ${totalAssignedAttendees} (Cars: ${assignedCarPassengers}/${totalActiveCarCapacity}${freeSeatsSnippet}`;
+        let headcountText = `Confirmed: ${totalConfirmedAttending} • Cars: ${assignedCarPassengers}/${totalActiveCarCapacity}${freeSeatsSnippet}`;
         if (trainCount > 0) {
             headcountText += ` • 🚆 Train: ${trainCount}`;
         }
-        headcountText += `)`;
+        if (confirmedWaitingCount > 0) {
+            headcountText += ` • ⚠️ Unseated: ${confirmedWaitingCount}`;
+        }
         
         document.getElementById('global-headcount').innerText = headcountText;
     }
@@ -923,6 +975,18 @@
             return nameA.localeCompare(nameB);
         });
         items.forEach(item => masterList.appendChild(item));
+        saveToCloud();
+    }
+
+    function sortConfirmedPool() {
+        const confirmedList = document.getElementById('confirmed-list');
+        const items = Array.from(confirmedList.children);
+        items.sort((a, b) => {
+            const nameA = a.querySelector('.person-name').innerText.toLowerCase();
+            const nameB = b.querySelector('.person-name').innerText.toLowerCase();
+            return nameA.localeCompare(nameB);
+        });
+        items.forEach(item => confirmedList.appendChild(item));
         saveToCloud();
     }
 
@@ -1004,10 +1068,10 @@
             }
         });
 
-        const poolCount = document.querySelectorAll('#master-list .attendee-item').length;
-        if (poolCount > 0) {
-            exportText += `⏳ *Unassigned Pool (${poolCount}):*\n`;
-            document.querySelectorAll('#master-list .attendee-item .person-name').forEach(el => {
+        const confirmedWaitingCount = document.querySelectorAll('#confirmed-list .attendee-item').length;
+        if (confirmedWaitingCount > 0) {
+            exportText += `⏳ *Confirmed (Awaiting Seat Assignment) (${confirmedWaitingCount}):*\n`;
+            document.querySelectorAll('#confirmed-list .attendee-item .person-name').forEach(el => {
                 exportText += `  • ${el.innerText}\n`;
             });
             exportText += `\n`;
@@ -1020,9 +1084,9 @@
         });
     }
 
-    function recallAllToPool() {
-        if (confirm("Are you sure you want to empty all transport options and return everyone to the Pool?")) {
-            const masterList = document.getElementById('master-list');
+    function recallAllToConfirmed() {
+        if (confirm("Empty all cars and move assigned passengers back into Confirmed Attendees?")) {
+            const confirmedList = document.getElementById('confirmed-list');
             CAR_IDS.forEach(carId => {
                 const listContainer = document.getElementById(`list-${carId}`);
                 if (listContainer) {
@@ -1030,10 +1094,9 @@
                     attendees.forEach(child => {
                         if (!child.classList.contains('permanent-driver')) {
                             setAttendeeDriverStatus(child, false);
-                            updateDriverButtonVisibility(child, 'master-list');
-                            masterList.appendChild(child);
+                            confirmedList.appendChild(child);
                             const selectEl = child.querySelector('.move-select');
-                            if (selectEl) selectEl.value = 'master';
+                            if (selectEl) selectEl.value = 'confirmed';
                         }
                     });
                 }
@@ -1079,12 +1142,17 @@
     async function saveToCloud() {
         const state = { 
             master: [], 
+            confirmed: [],
             cars: {},
             activeCars: {}
         };
         
         document.querySelectorAll('#master-list .attendee-item .person-name').forEach(el => {
             state.master.push({ name: el.innerText, isDriver: false });
+        });
+
+        document.querySelectorAll('#confirmed-list .attendee-item .person-name').forEach(el => {
+            state.confirmed.push({ name: el.innerText, isDriver: false });
         });
         
         CAR_IDS.forEach(carId => {
@@ -1157,6 +1225,7 @@
         }
 
         document.getElementById('master-list').innerHTML = '';
+        document.getElementById('confirmed-list').innerHTML = '';
         CAR_IDS.forEach(carId => {
             const listContainer = document.getElementById(`list-${carId}`);
             if (listContainer) {
@@ -1170,6 +1239,13 @@
             targetState.master.forEach(item => {
                 const name = typeof item === 'string' ? item : item.name;
                 addAttendee(name, 'master-list', false);
+            });
+        }
+
+        if (targetState.confirmed) {
+            targetState.confirmed.forEach(item => {
+                const name = typeof item === 'string' ? item : item.name;
+                addAttendee(name, 'confirmed-list', false);
             });
         }
         
@@ -1197,6 +1273,7 @@
     function clearAllData() {
         if(confirm("Completely wipe everyone out online?")) {
             document.getElementById('master-list').innerHTML = '';
+            document.getElementById('confirmed-list').innerHTML = '';
             CAR_IDS.forEach(carId => {
                 const listContainer = document.getElementById(`list-${carId}`);
                 if (listContainer) {
