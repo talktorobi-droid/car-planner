@@ -395,7 +395,7 @@
             <div class="btn-group">
                 <button class="secondary" onclick="loadFromCloud()">🔄 Refresh</button>
                 <button class="secondary share-btn" onclick="exportSharePlan()">📋 Share</button>
-                <button class="secondary" onclick="recallAllToConfirmed()">↩️ Empty Cars</button>
+                <button class="secondary" onclick="recallAllToPool()">↩️ Empty Cars</button>
                 <button class="secondary danger" onclick="clearAllData()">Reset</button>
             </div>
         </div>
@@ -641,7 +641,7 @@
     function toggleCarAvailability(carId, isActive) {
         const carEl = document.getElementById(carId);
         const targetList = document.getElementById(`list-${carId}`);
-        const confirmedList = document.getElementById('confirmed-list');
+        const masterList = document.getElementById('master-list');
 
         if (!isActive) {
             carEl.classList.add('car-inactive');
@@ -650,7 +650,9 @@
                 occupants.forEach(child => {
                     if (!child.classList.contains('permanent-driver')) {
                         setAttendeeDriverStatus(child, false);
-                        confirmedList.appendChild(child);
+                        masterList.appendChild(child);
+                        const selectEl = child.querySelector('.move-select');
+                        if (selectEl) selectEl.value = 'master';
                     }
                 });
             }
@@ -684,7 +686,7 @@
             });
 
             if (currentVal !== 'master' && currentVal !== 'confirmed' && !isCarActive(currentVal)) {
-                selectEl.value = 'confirmed';
+                selectEl.value = 'master';
             } else {
                 selectEl.value = currentVal;
             }
@@ -950,7 +952,6 @@
         document.getElementById('pool-count').innerText = poolCount;
         document.getElementById('confirmed-count').innerText = confirmedWaitingCount;
 
-        // Total Confirmed = Waiting in Confirmed holding list + already seated in Cars + on Train
         const totalConfirmedAttending = confirmedWaitingCount + assignedCarPassengers + trainCount;
         const remainingCarSeats = totalActiveCarCapacity - assignedCarPassengers;
         
@@ -1084,9 +1085,9 @@
         });
     }
 
-    function recallAllToConfirmed() {
-        if (confirm("Empty all cars and move assigned passengers back into Confirmed Attendees?")) {
-            const confirmedList = document.getElementById('confirmed-list');
+    function recallAllToPool() {
+        if (confirm("Are you sure you want to empty all cars and return everyone to the Pool?")) {
+            const masterList = document.getElementById('master-list');
             CAR_IDS.forEach(carId => {
                 const listContainer = document.getElementById(`list-${carId}`);
                 if (listContainer) {
@@ -1094,9 +1095,9 @@
                     attendees.forEach(child => {
                         if (!child.classList.contains('permanent-driver')) {
                             setAttendeeDriverStatus(child, false);
-                            confirmedList.appendChild(child);
+                            masterList.appendChild(child);
                             const selectEl = child.querySelector('.move-select');
-                            if (selectEl) selectEl.value = 'confirmed';
+                            if (selectEl) selectEl.value = 'master';
                         }
                     });
                 }
